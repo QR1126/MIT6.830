@@ -159,6 +159,7 @@ public class TupleDesc implements Serializable {
     public int fieldNameToIndex(String name) throws NoSuchElementException {
         // some code goes here
         for (int i = 0; i < size; i++) {
+            if (tdItemList.get(i).fieldName == null) continue;
             if (tdItemList.get(i).fieldName.equals(name)) {
                 return i;
             }
