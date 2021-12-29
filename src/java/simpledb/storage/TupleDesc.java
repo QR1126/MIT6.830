@@ -172,7 +172,11 @@ public class TupleDesc implements Serializable {
      */
     public int getSize() {
         // some code goes here
-        return 0;
+        int res = 0;
+        for (TDItem item : tdItemList) {
+            res += item.fieldType.getLen();
+        }
+        return res;
     }
 
     /**
