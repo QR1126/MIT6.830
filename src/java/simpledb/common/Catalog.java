@@ -32,7 +32,7 @@ public class Catalog {
         map = new ConcurrentHashMap<>();
     }
 
-    private class Table {
+    private static class Table {
         private DbFile file;
         private String name;
         private String pkeyField;
@@ -83,9 +83,8 @@ public class Catalog {
     public int getTableId(String name) throws NoSuchElementException {
         // some code goes here
         for (Map.Entry<Integer, Table> entry : map.entrySet()) {
-            Table table = entry.getValue();
-            if (table.name.equals(name)) {
-                return entry.getKey();
+            if (entry.getValue().name.equals(name)) {
+                return entry.getValue().file.getId();
             }
         }
         throw new NoSuchElementException();
