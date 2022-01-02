@@ -289,7 +289,7 @@ public class HeapPage implements Page {
         // some code goes here
         int res = 0;
         for (int i = 0; i < numSlots; i++) {
-            if (isSlotUsed(i)) res++;
+            if (!isSlotUsed(i)) res++;
         }
         return res;
     }
