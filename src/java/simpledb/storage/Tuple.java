@@ -17,7 +17,7 @@ public class Tuple implements Serializable {
     private TupleDesc tupleDesc;
     private Field field;
     private RecordId recordId;
-    private List<Field> tuples = new ArrayList<>();
+    private List<Field> tuples;
     private int size = 0;
 
     /**
@@ -35,6 +35,7 @@ public class Tuple implements Serializable {
         }
         this.tupleDesc = td;
         size = td.numFields();
+        tuples = new ArrayList<>(td.numFields());
     }
 
     /**
@@ -76,7 +77,7 @@ public class Tuple implements Serializable {
     public void setField(int i, Field f) {
         // some code goes here
         validCheck(i);
-        tuples.set(i, f);
+        tuples.add(i, f);
     }
 
     private void validCheck(int i) {
