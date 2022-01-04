@@ -19,6 +19,10 @@ import java.util.*;
 public class SeqScan implements OpIterator {
 
     private static final long serialVersionUID = 1L;
+    private TransactionId transactionId;
+    private int tableId;
+    private String tableAlias;
+    private DbFileIterator it;
 
     /**
      * Creates a sequential scan over the specified table as a part of the
@@ -38,6 +42,10 @@ public class SeqScan implements OpIterator {
      */
     public SeqScan(TransactionId tid, int tableid, String tableAlias) {
         // some code goes here
+        this.transactionId = tid;
+        this.tableId = tableid;
+        this.tableAlias = tableAlias;
+        this.it = Database.getCatalog().getDatabaseFile(tableid).iterator(tid);
     }
 
     /**
@@ -55,7 +63,7 @@ public class SeqScan implements OpIterator {
     public String getAlias()
     {
         // some code goes here
-        return null;
+        return tableAlias;
     }
 
     /**
@@ -72,6 +80,8 @@ public class SeqScan implements OpIterator {
      */
     public void reset(int tableid, String tableAlias) {
         // some code goes here
+        this.tableId = tableid;
+        this.tableAlias = tableAlias;
     }
 
     public SeqScan(TransactionId tid, int tableId) {
@@ -80,6 +90,7 @@ public class SeqScan implements OpIterator {
 
     public void open() throws DbException, TransactionAbortedException {
         // some code goes here
+        it.open();
     }
 
     /**
@@ -94,26 +105,42 @@ public class SeqScan implements OpIterator {
      */
     public TupleDesc getTupleDesc() {
         // some code goes here
-        return null;
+        TupleDesc tupleDesc = Database.getCatalog().getTupleDesc(tableId);
+        Type[] types = new Type[tupleDesc.numFields()];
+        String[] fieldNames = new String[tupleDesc.numFields()];
+        String prefix = "null";
+        if (getAlias() != null) {
+            prefix = getAlias() + ".";
+        }
+        for (int i = 0; i < tupleDesc.numFields(); i++) {
+            types[i] = tupleDesc.getFieldType(i);
+            fieldNames[i] = prefix + tupleDesc.getFieldName(i);
+        }
+        return new TupleDesc(types, fieldNames);
     }
 
     public boolean hasNext() throws TransactionAbortedException, DbException {
         // some code goes here
-        return false;
+        if (it == null) {
+            return false;
+        }
+        return it.hasNext();
     }
 
     public Tuple next() throws NoSuchElementException,
             TransactionAbortedException, DbException {
         // some code goes here
-        return null;
+        return it.next();
     }
 
     public void close() {
         // some code goes here
+        it.close();
     }
 
     public void rewind() throws DbException, NoSuchElementException,
             TransactionAbortedException {
         // some code goes here
+        it.rewind();
     }
 }
