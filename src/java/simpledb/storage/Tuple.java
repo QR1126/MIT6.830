@@ -17,9 +17,8 @@ public class Tuple implements Serializable {
     private TupleDesc tupleDesc;
     private Field field;
     private RecordId recordId;
-    //private List<Field> tuples;
     private int size = 0;
-    private Field[] list;
+    private Field[] tuples;
     /**
      * Create a new tuple with the specified schema (type).
      *
@@ -35,8 +34,7 @@ public class Tuple implements Serializable {
         }
         this.tupleDesc = td;
         size = td.numFields();
-        //tuples = new ArrayList<>(td.numFields());
-        list = new Field[td.numFields()];
+        tuples = new Field[td.numFields()];
     }
 
     /**
@@ -78,7 +76,7 @@ public class Tuple implements Serializable {
     public void setField(int i, Field f) {
         // some code goes here
         validCheck(i);
-        list[i] = f;
+        tuples[i] = f;
     }
 
     private void validCheck(int i) {
@@ -96,7 +94,7 @@ public class Tuple implements Serializable {
     public Field getField(int i) {
         // some code goes here
         validCheck(i);
-        return list[i];
+        return tuples[i];
     }
 
     /**
@@ -109,7 +107,7 @@ public class Tuple implements Serializable {
      */
     public String toString() {
         // some code goes here
-        throw new UnsupportedOperationException("Implement this");
+        return Arrays.toString(tuples);
     }
 
     /**
@@ -119,7 +117,7 @@ public class Tuple implements Serializable {
     public Iterator<Field> fields()
     {
         // some code goes here
-        return Arrays.asList(list).iterator();
+        return Arrays.asList(tuples).iterator();
     }
 
     /**

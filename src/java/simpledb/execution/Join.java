@@ -17,6 +17,7 @@ public class Join extends Operator {
     private JoinPredicate p;
     private OpIterator child1;
     private OpIterator child2;
+    private Tuple t;
     /**
      * Constructor. Accepts two children to join and the predicate to join them
      * on
@@ -33,6 +34,7 @@ public class Join extends Operator {
         this.p = p;
         this.child1 = child1;
         this.child2 = child2;
+        this.t = null;
     }
 
     public JoinPredicate getJoinPredicate() {
@@ -110,12 +112,27 @@ public class Join extends Operator {
      */
     protected Tuple fetchNext() throws TransactionAbortedException, DbException {
         // some code goes here
-        while (child1.hasNext() && child2.hasNext()) {
-            Tuple tuple1 = child1.next();
-            Tuple tuple2 = child2.next();
-            if (p.filter(tuple1, tuple2)) {
-                return tuple1;
+        while (child1.hasNext() || this.t == null) {
+            if (child1.hasNext() && this.t == null) {
+                t = child1.next();
             }
+            while (child2.hasNext()) {
+                Tuple tuple2 = child2.next();
+                if (p.filter(t, tuple2)) {
+                    Tuple tuple = new Tuple(TupleDesc.merge(t.getTupleDesc(), tuple2.getTupleDesc()));
+                    tuple.setRecordId(t.getRecordId());
+                    int idx = 0, len1 = t.getTupleDesc().numFields(), len2 = tuple2.getTupleDesc().numFields();
+                    for (int i = 0; i < len1; i++, idx++) tuple.setField(idx, t.getField(i));
+                    for (int i = 0; i < len2; i++, idx++) tuple.setField(idx, tuple2.getField(i));
+                    if (!child2.hasNext()) {
+                        child2.rewind();
+                        t = null;
+                    }
+                    return tuple;
+                }
+            }
+            child2.rewind();
+            t = null;
         }
         return null;
     }
