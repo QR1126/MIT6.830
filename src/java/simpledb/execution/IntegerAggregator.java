@@ -10,6 +10,11 @@ public class IntegerAggregator implements Aggregator {
 
     private static final long serialVersionUID = 1L;
 
+    private int gbField;
+    private Type gbFieldType;
+    private int aField;
+    private Op what;
+
     /**
      * Aggregate constructor
      * 
@@ -27,6 +32,10 @@ public class IntegerAggregator implements Aggregator {
 
     public IntegerAggregator(int gbfield, Type gbfieldtype, int afield, Op what) {
         // some code goes here
+        this.gbField = gbfield;
+        this.gbFieldType = gbfieldtype;
+        this.aField = afield;
+        this.what = what;
     }
 
     /**
@@ -38,6 +47,7 @@ public class IntegerAggregator implements Aggregator {
      */
     public void mergeTupleIntoGroup(Tuple tup) {
         // some code goes here
+
     }
 
     /**

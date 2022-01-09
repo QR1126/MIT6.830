@@ -116,17 +116,14 @@ public class TupleDesc implements Serializable {
      */
     public String getFieldName(int i) throws NoSuchElementException {
         // some code goes here
-        if (!validCheck(i)) {
-            throw new NoSuchElementException();
-        }
+        validCheck(i);
         return tdItemList.get(i).fieldName;
     }
 
-    private boolean validCheck(int i) {
+    private void validCheck(int i) {
         if (i < 0 || i >= size) {
-            return false;
+            throw new NoSuchElementException("i is not a valid field reference");
         }
-        return true;
     }
 
     /**
@@ -141,9 +138,7 @@ public class TupleDesc implements Serializable {
      */
     public Type getFieldType(int i) throws NoSuchElementException {
         // some code goes here
-        if (!validCheck(i)) {
-            throw new NoSuchElementException();
-        }
+        validCheck(i);
         return tdItemList.get(i).fieldType;
     }
 
@@ -164,7 +159,7 @@ public class TupleDesc implements Serializable {
                 return i;
             }
         }
-        throw new NoSuchElementException();
+        throw new NoSuchElementException("No field with a matching name is found");
     }
 
     /**
@@ -236,7 +231,8 @@ public class TupleDesc implements Serializable {
     public int hashCode() {
         // If you want to use TupleDesc as keys for HashMap, implement this so
         // that equal objects have equals hashCode() results
-        throw new UnsupportedOperationException("unimplemented");
+        //throw new UnsupportedOperationException("unimplemented");
+        return this.tdItemList.hashCode();
     }
 
     /**

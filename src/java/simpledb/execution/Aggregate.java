@@ -17,6 +17,10 @@ public class Aggregate extends Operator {
 
     private static final long serialVersionUID = 1L;
 
+    private OpIterator child;
+    private int aField;
+    private int gField;
+    private Aggregator.Op aop;
     /**
      * Constructor.
      * <p>
@@ -32,6 +36,10 @@ public class Aggregate extends Operator {
      */
     public Aggregate(OpIterator child, int afield, int gfield, Aggregator.Op aop) {
         // some code goes here
+        this.child = child;
+        this.aField = afield;
+        this.gField = gfield;
+        this.aop = aop;
     }
 
     /**
