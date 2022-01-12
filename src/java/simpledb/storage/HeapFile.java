@@ -128,49 +128,53 @@ public class HeapFile implements DbFile {
     // see DbFile.java for javadocs
     public DbFileIterator iterator(TransactionId tid) {
         // some code goes here
-        return new HeapFileIterator(this, tid);
+        return new heapFileIterator(tid, this);
     }
 
-    private static class HeapFileIterator implements DbFileIterator {
-        private HeapFile heapFile;
+    private class heapFileIterator implements DbFileIterator {
+
         private TransactionId tid;
         private Iterator<Tuple> it;
-        private int cnt;
+        private HeapFile heapFile;
+        private int numberOfPage;
 
-        public HeapFileIterator(HeapFile heapFile, TransactionId tid) {
-            this.heapFile = heapFile;
+        public heapFileIterator(TransactionId tid, HeapFile heapFile) {
             this.tid = tid;
-        }
-
-        private Iterator<Tuple> getIt(int pageNumber) throws TransactionAbortedException, DbException {
-            if (pageNumber >= 0 && pageNumber < heapFile.numPages()) {
-                HeapPageId heapPageId = new HeapPageId(heapFile.getId(), pageNumber);
-                HeapPage heapPage = (HeapPage) Database.getBufferPool().getPage(tid, heapPageId, Permissions.READ_ONLY);
-                return heapPage.iterator();
-            }
-            else {
-                throw new DbException(String.format("heapfile does not contain page %d", heapFile.getId()));
-            }
+            this.heapFile = heapFile;
         }
 
         @Override
         public void open() throws DbException, TransactionAbortedException {
-            cnt = 0;
-            it = getIt(cnt);
+            numberOfPage = 0;
+            it = getIt(numberOfPage);
+        }
+
+        private Iterator<Tuple> getIt(int numberOfPage) throws TransactionAbortedException, DbException {
+            if (numberOfPage >= 0 && numberOfPage < heapFile.numPages()) {
+                HeapPageId heapPageId = new HeapPageId(heapFile.getId(), numberOfPage);
+                HeapPage heapPage = (HeapPage) Database.getBufferPool().getPage(tid, heapPageId, Permissions.READ_ONLY);
+                return heapPage.iterator();
+            }
+            else {
+                throw new NoSuchElementException();
+            }
         }
 
         @Override
         public boolean hasNext() throws DbException, TransactionAbortedException {
-            if (it == null) return false;
+            if (it == null) {
+                return false;
+            }
             if (!it.hasNext()) {
-                if (cnt < (heapFile.numPages() - 1)) {
-                    cnt ++;
-                    it = getIt(cnt);
+                if (numberOfPage < this.numberOfPage) {
+                    it = getIt(++numberOfPage);
                     return it.hasNext();
-                } else {
+                }
+                else {
                     return false;
                 }
-            } else {
+            }
+            else {
                 return true;
             }
         }
