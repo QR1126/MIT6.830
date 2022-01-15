@@ -77,7 +77,7 @@ public interface Aggregator extends Serializable {
      *
      * @param tup the Tuple containing an aggregate field and a group-by field
      */
-    void mergeTupleIntoGroup(Tuple tup);
+    void mergeTupleIntoGroup(Tuple tup) throws Exception;
 
     /**
      * Create a OpIterator over group aggregate results.
