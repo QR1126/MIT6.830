@@ -25,6 +25,9 @@ public class HeapPage implements Page {
     final Tuple[] tuples;
     final int numSlots;
 
+    private boolean isDirty;
+    private TransactionId tid;
+
     byte[] oldData;
     private final Byte oldDataLock= (byte) 0;
 
@@ -250,6 +253,14 @@ public class HeapPage implements Page {
     public void deleteTuple(Tuple t) throws DbException {
         // some code goes here
         // not necessary for lab1
+        RecordId recordId = t.getRecordId();
+        int tupleNumber = recordId.getTupleNumber();
+        HeapPageId heapPageId = (HeapPageId) recordId.getPageId();
+        if (!heapPageId.equals(this.pid) || !isSlotUsed(tupleNumber)) {
+            throw new DbException("this tuple is not on this page");
+        }
+        tuples[tupleNumber] = null;
+        markSlotUsed(tupleNumber, false);
     }
 
     /**
@@ -262,6 +273,13 @@ public class HeapPage implements Page {
     public void insertTuple(Tuple t) throws DbException {
         // some code goes here
         // not necessary for lab1
+        TupleDesc tupleDesc = t.getTupleDesc();
+        int tupleNumber = t.getRecordId().getTupleNumber();
+        if (getNumEmptySlots() == 0 || !tupleDesc.equals(td)) {
+            throw new DbException("this page is full or tupledesc is mismatch");
+        }
+        this.tuples[tupleNumber] = t;
+        markSlotUsed(tupleNumber, true);
     }
 
     /**
@@ -271,6 +289,8 @@ public class HeapPage implements Page {
     public void markDirty(boolean dirty, TransactionId tid) {
         // some code goes here
 	// not necessary for lab1
+        this.isDirty = dirty;
+        this.tid = tid;
     }
 
     /**
@@ -279,7 +299,7 @@ public class HeapPage implements Page {
     public TransactionId isDirty() {
         // some code goes here
 	// Not necessary for lab1
-        return null;      
+        return isDirty ? tid : null;
     }
 
     /**
@@ -311,6 +331,13 @@ public class HeapPage implements Page {
     private void markSlotUsed(int i, boolean value) {
         // some code goes here
         // not necessary for lab1
+        int byteIndex = i / 8;
+        int bitIndex = i % 8;
+        if (value) {
+            this.header[byteIndex] |= 1 << bitIndex;
+        } else {
+            this.header[byteIndex] &= ((1 << bitIndex) - 1);
+        }
     }
 
     /**
