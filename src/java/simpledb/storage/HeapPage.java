@@ -274,12 +274,13 @@ public class HeapPage implements Page {
         // some code goes here
         // not necessary for lab1
         TupleDesc tupleDesc = t.getTupleDesc();
-        int tupleNumber = t.getRecordId().getTupleNumber();
-        if (getNumEmptySlots() == 0 || !tupleDesc.equals(td)) {
+        if (getNumEmptySlots() == 0 || !tupleDesc.equals(this.td)) {
             throw new DbException("this page is full or tupledesc is mismatch");
         }
-        this.tuples[tupleNumber] = t;
-        markSlotUsed(tupleNumber, true);
+        int index = numSlots - getNumEmptySlots();
+        this.tuples[index] = t;
+        t.setRecordId(new RecordId(this.pid, index));
+        markSlotUsed(index, true);
     }
 
     /**
@@ -336,7 +337,7 @@ public class HeapPage implements Page {
         if (value) {
             this.header[byteIndex] |= 1 << bitIndex;
         } else {
-            this.header[byteIndex] &= ((1 << bitIndex) - 1);
+            this.header[byteIndex] ^= 1 << bitIndex;
         }
     }
 
