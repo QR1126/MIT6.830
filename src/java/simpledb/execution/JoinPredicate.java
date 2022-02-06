@@ -34,6 +34,7 @@ public class JoinPredicate implements Serializable {
         // some code goes here
         this.field1 = field1;
         this.field2 = field2;
+
         this.op = op;
     }
 
