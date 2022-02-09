@@ -42,6 +42,10 @@ public class Catalog {
             this.name = name;
             this.pkeyField = pkeyField;
         }
+
+        public String getName() {
+            return name;
+        }
     }
 
     private Map<Integer, Table> map;
@@ -58,6 +62,13 @@ public class Catalog {
     public void addTable(DbFile file, String name, String pkeyField) {
         // some code goes here
         int id = file.getId();
+        for (Map.Entry<Integer, Table> entry : map.entrySet()) {
+            if (entry.getValue().getName().equals(name)) {
+                Integer key = entry.getKey();
+                map.replace(key, new Table(file, name, pkeyField));
+                return;
+            }
+        }
         map.put(id, new Table(file, name, pkeyField));
     }
 
