@@ -54,7 +54,7 @@ public class SeqScan implements OpIterator {
      *       be the actual name of the table in the catalog of the database
      * */
     public String getTableName() {
-        return null;
+        return Database.getCatalog().getTableName(this.tableId);
     }
 
     /**
@@ -108,10 +108,7 @@ public class SeqScan implements OpIterator {
         TupleDesc tupleDesc = Database.getCatalog().getTupleDesc(tableId);
         Type[] types = new Type[tupleDesc.numFields()];
         String[] fieldNames = new String[tupleDesc.numFields()];
-        String prefix = "null";
-        if (getAlias() != null) {
-            prefix = getAlias() + ".";
-        }
+        String prefix = getAlias() == null ? "null." : getAlias() + ".";
         for (int i = 0; i < tupleDesc.numFields(); i++) {
             types[i] = tupleDesc.getFieldType(i);
             fieldNames[i] = prefix + tupleDesc.getFieldName(i);
@@ -121,9 +118,6 @@ public class SeqScan implements OpIterator {
 
     public boolean hasNext() throws TransactionAbortedException, DbException {
         // some code goes here
-        if (it == null) {
-            return false;
-        }
         return it.hasNext();
     }
 

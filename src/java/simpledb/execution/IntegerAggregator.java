@@ -24,6 +24,7 @@ public class IntegerAggregator implements Aggregator {
     private Map<Field, Integer> groupMap;
     private Map<Field, Integer> countMap;
     private Map<Field, List<Integer>> avgMap;
+    private Map<Field, Integer> sumMap;
 
     /**
      * Aggregate constructor
@@ -49,6 +50,7 @@ public class IntegerAggregator implements Aggregator {
         this.avgMap = new HashMap<>();
         this.countMap = new HashMap<>();
         this.groupMap = new HashMap<>();
+        this.sumMap = new HashMap<>();
     }
 
     /**
@@ -60,55 +62,44 @@ public class IntegerAggregator implements Aggregator {
      */
     public void mergeTupleIntoGroup(Tuple tup) throws Exception {
         // some code goes here
-        IntField afield = (IntField) tup.getField(aField);
-        int aValue = afield.getValue();
-        Field groupByField = gbField == NO_GROUPING ? null : tup.getField(gbField);
-        if (groupByField != null && !groupByField.getType().equals(this.gbFieldType)) {
-            throw new Exception("Type was wrong");
-        }
+        IntField groupField = (IntField) tup.getField(gbField);
+        IntField aggregateField = (IntField) tup.getField(aField);
+        int aggValue = aggregateField.getValue();
         switch (what) {
-            case MIN:
-                if (!groupMap.containsKey(groupByField)) {
-                    groupMap.put(groupByField, aValue);
-                }
-                else {
-                    groupMap.put(groupByField, Math.min(groupMap.get(groupByField), aValue));
-                }
-                break;
-
             case MAX:
-                if (!groupMap.containsKey(groupByField)) {
-                    groupMap.put(groupByField, aValue);
+                if (!groupMap.containsKey(groupField)) {
+                    groupMap.put(groupField, aggValue);
                 }
                 else {
-                    groupMap.put(groupByField, Math.max(groupMap.get(groupByField), aValue));
+                    groupMap.put(groupField, Math.max(groupMap.get(groupField), aggValue));
                 }
-                break;
 
-            case SUM:
-                groupMap.put(groupByField, groupMap.getOrDefault(groupByField, 0) + aValue);
-                break;
+            case MIN:
+                if (!groupMap.containsKey(groupField)) {
+                    groupMap.put(groupField, aggValue);
+                }
+                else {
+                    groupMap.put(groupField, Math.min(groupMap.get(groupField), aggValue));
+                }
 
             case COUNT:
-                countMap.put(groupByField, countMap.getOrDefault(groupByField, 0) + 1);
-                break;
+                countMap.put(groupField, countMap.getOrDefault(groupField, 0) + 1);
+
+            case SUM:
+                sumMap.put(groupField, sumMap.getOrDefault(groupField, 0) + aggValue);
 
             case AVG:
-                if (!avgMap.containsKey(groupByField)) {
-                    List<Integer> list = new ArrayList<>();
-                    list.add(aValue);
-                    avgMap.put(groupByField, list);
+                if (!avgMap.containsKey(groupField)) {
+                    List<Integer> list = new LinkedList<>();
+                    list.add(aggValue);
+                    avgMap.put(groupField, list);
                 }
                 else {
-                    List<Integer> list = avgMap.get(groupByField);
-                    list.add(aValue);
+                    List<Integer> list = avgMap.get(groupField);
+                    list.add(aggValue);
+                    avgMap.put(groupField, list);
                 }
-                break;
-
-            default:
-                break;
         }
-
     }
 
     /**
@@ -126,8 +117,6 @@ public class IntegerAggregator implements Aggregator {
     }
 
     private class IntegerAggregatorIterator implements OpIterator {
-
-
 
         @Override
         public void open() throws DbException, TransactionAbortedException {
