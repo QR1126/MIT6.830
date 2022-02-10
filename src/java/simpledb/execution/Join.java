@@ -17,7 +17,8 @@ public class Join extends Operator {
     private JoinPredicate p;
     private OpIterator child1;
     private OpIterator child2;
-    private Tuple t;
+    private Tuple tuple1;
+    private boolean isUpdate;
     /**
      * Constructor. Accepts two children to join and the predicate to join them
      * on
@@ -34,7 +35,8 @@ public class Join extends Operator {
         this.p = p;
         this.child1 = child1;
         this.child2 = child2;
-        this.t = null;
+        this.tuple1 = null;
+        this.isUpdate = true;
     }
 
     public JoinPredicate getJoinPredicate() {
@@ -112,27 +114,28 @@ public class Join extends Operator {
      */
     protected Tuple fetchNext() throws TransactionAbortedException, DbException {
         // some code goes here
-        while (child1.hasNext() || this.t == null) {
-            if (child1.hasNext() && this.t == null) {
-                t = child1.next();
-            }
+        while (child1.hasNext()) {
+            if (isUpdate) tuple1 = child1.next();
             while (child2.hasNext()) {
                 Tuple tuple2 = child2.next();
-                if (p.filter(t, tuple2)) {
-                    Tuple tuple = new Tuple(TupleDesc.merge(t.getTupleDesc(), tuple2.getTupleDesc()));
-                    tuple.setRecordId(t.getRecordId());
-                    int idx = 0, len1 = t.getTupleDesc().numFields(), len2 = tuple2.getTupleDesc().numFields();
-                    for (int i = 0; i < len1; i++, idx++) tuple.setField(idx, t.getField(i));
+                if (p.filter(tuple1, tuple2)) {
+                    Tuple tuple = new Tuple(TupleDesc.merge(tuple1.getTupleDesc(), tuple2.getTupleDesc()));
+                    tuple.setRecordId(tuple1.getRecordId());
+                    int len1 = tuple1.getTupleDesc().numFields(), len2 = tuple2.getTupleDesc().numFields();
+                    int idx =0;
+                    for (int i = 0; i < len1; i++, idx++) tuple.setField(idx, tuple1.getField(i));
                     for (int i = 0; i < len2; i++, idx++) tuple.setField(idx, tuple2.getField(i));
-                    if (!child2.hasNext()) {
-                        child2.rewind();
-                        t = null;
-                    }
+                    //child2.rewind();
+                    isUpdate = false;
                     return tuple;
                 }
+                isUpdate = true;
             }
-            child2.rewind();
-            t = null;
+            if (!child2.hasNext() && child1.hasNext()) {
+                //tuple1 = child1.next();
+                isUpdate = true;
+                child2.rewind();
+            }
         }
         return null;
     }
