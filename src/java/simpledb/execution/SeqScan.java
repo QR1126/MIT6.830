@@ -45,7 +45,7 @@ public class SeqScan implements OpIterator {
         this.transactionId = tid;
         this.tableId = tableid;
         this.tableAlias = tableAlias;
-        this.it = Database.getCatalog().getDatabaseFile(tableid).iterator(tid);
+        this.it = null;
     }
 
     /**
@@ -90,6 +90,7 @@ public class SeqScan implements OpIterator {
 
     public void open() throws DbException, TransactionAbortedException {
         // some code goes here
+        it = Database.getCatalog().getDatabaseFile(tableId).iterator(transactionId);
         it.open();
     }
 
@@ -108,7 +109,7 @@ public class SeqScan implements OpIterator {
         TupleDesc tupleDesc = Database.getCatalog().getTupleDesc(tableId);
         Type[] types = new Type[tupleDesc.numFields()];
         String[] fieldNames = new String[tupleDesc.numFields()];
-        String prefix = getAlias() == null ? "null." : getAlias() + ".";
+        String prefix = getAlias() + ".";
         for (int i = 0; i < tupleDesc.numFields(); i++) {
             types[i] = tupleDesc.getFieldType(i);
             fieldNames[i] = prefix + tupleDesc.getFieldName(i);
@@ -129,12 +130,16 @@ public class SeqScan implements OpIterator {
 
     public void close() {
         // some code goes here
-        it.close();
+        if (it != null) {
+            it.close();
+            it = null;
+        }
     }
 
     public void rewind() throws DbException, NoSuchElementException,
             TransactionAbortedException {
         // some code goes here
-        it.rewind();
+        it = Database.getCatalog().getDatabaseFile(tableId).iterator(transactionId);
+        it.open();
     }
 }

@@ -9,6 +9,7 @@ import simpledb.storage.TupleDesc;
 import simpledb.transaction.TransactionAbortedException;
 
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Knows how to compute some aggregate over a set of IntFields.
@@ -21,10 +22,8 @@ public class IntegerAggregator implements Aggregator {
     private Type gbFieldType;
     private int aField;
     private Op what;
-    private Map<Field, Integer> groupMap;
-    private Map<Field, Integer> countMap;
-    private Map<Field, List<Integer>> avgMap;
-    private Map<Field, Integer> sumMap;
+    private Map<Field, Object> groupIntegerAggVal;
+    private TupleDesc integerAggDesc;
 
     /**
      * Aggregate constructor
@@ -47,10 +46,12 @@ public class IntegerAggregator implements Aggregator {
         this.gbFieldType = gbfieldtype;
         this.aField = afield;
         this.what = what;
-        this.avgMap = new HashMap<>();
-        this.countMap = new HashMap<>();
-        this.groupMap = new HashMap<>();
-        this.sumMap = new HashMap<>();
+        this.groupIntegerAggVal = new ConcurrentHashMap<>();
+        if (this.gbField == NO_GROUPING) {
+            this.integerAggDesc = new TupleDesc(new Type[]{Type.INT_TYPE}, new String[]{"No_Grouping aggregate value"});
+        } else {
+            this.integerAggDesc = new TupleDesc(new Type[]{Type.INT_TYPE, gbfieldtype}, new String[]{"Grouping aggregate value"});
+        }
     }
 
     /**
@@ -62,43 +63,48 @@ public class IntegerAggregator implements Aggregator {
      */
     public void mergeTupleIntoGroup(Tuple tup) throws Exception {
         // some code goes here
-        IntField groupField = (IntField) tup.getField(gbField);
-        IntField aggregateField = (IntField) tup.getField(aField);
-        int aggValue = aggregateField.getValue();
+        assert tup.getField(gbField).getType() == gbFieldType;
+        Field field = this.gbField == NO_GROUPING ? null : tup.getField(gbField);
+        Object oldValue = groupIntegerAggVal.get(field);
+        if (oldValue == null) {
+            oldValue = init();
+        }
+        Object aggVal = aggregate(oldValue, ((IntField) tup.getField(aField)).getValue());
+        groupIntegerAggVal.put(field, aggVal);
+    }
+
+    private Object init() {
         switch (what) {
-            case MAX:
-                if (!groupMap.containsKey(groupField)) {
-                    groupMap.put(groupField, aggValue);
-                }
-                else {
-                    groupMap.put(groupField, Math.max(groupMap.get(groupField), aggValue));
-                }
+            case MAX: return Integer.MIN_VALUE;
+            case MIN: return Integer.MAX_VALUE;
+            case SUM: case COUNT: return 0;
+            case AVG: return new pair(0 , 0);
+        }
+        assert false;
+        return null;
+    }
 
-            case MIN:
-                if (!groupMap.containsKey(groupField)) {
-                    groupMap.put(groupField, aggValue);
-                }
-                else {
-                    groupMap.put(groupField, Math.min(groupMap.get(groupField), aggValue));
-                }
-
-            case COUNT:
-                countMap.put(groupField, countMap.getOrDefault(groupField, 0) + 1);
-
-            case SUM:
-                sumMap.put(groupField, sumMap.getOrDefault(groupField, 0) + aggValue);
-
+    private Object aggregate(Object oldVal, int newVal) {
+        switch (what) {
+            case MIN: return Integer.min((Integer) oldVal, newVal);
+            case MAX: return Integer.max((Integer) oldVal, newVal);
+            case COUNT: return (Integer) oldVal + 1;
+            case SUM: return (Integer) oldVal + newVal;
             case AVG:
-                if (!avgMap.containsKey(groupField)) {
-                    List<Integer> list = new LinkedList<>();
-                    list.add(aggValue);
-                    avgMap.put(groupField, list);
-                }
-                else {
-                    List<Integer> list = avgMap.get(groupField);
-                    list.add(aggValue);
-                    avgMap.put(groupField, list);
-                }
+                pair p = (pair) oldVal;
+                return new pair(p.first + newVal, p.second + 1);
+        }
+        assert false;
+        return null;
+    }
+
+    private class pair {
+        Integer first;
+        Integer second;
+
+        public pair(Integer first, Integer second) {
+            this.first = first;
+            this.second = second;
         }
     }
 
