@@ -1,7 +1,13 @@
 package simpledb.execution;
 
 import simpledb.common.Type;
-import simpledb.storage.Tuple;
+import simpledb.storage.*;
+
+import java.io.File;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Knows how to compute some aggregate over a set of StringFields.
@@ -14,6 +20,8 @@ public class StringAggregator implements Aggregator {
     private Type gbFieldType;
     private int aField;
     private Op what;
+    private Map<Field, Integer> groupStringAggVal;
+    private TupleDesc StringAggDesc;
     /**
      * Aggregate constructor
      * @param gbfield the 0-based index of the group-by field in the tuple, or NO_GROUPING if there is no grouping
@@ -28,7 +36,14 @@ public class StringAggregator implements Aggregator {
         this.gbField = gbfield;
         this.gbFieldType = gbfieldtype;
         this.aField = afield;
+        if (!what.equals(Op.COUNT)) throw new IllegalArgumentException("Exception: what != COUNT");
         this.what = what;
+        groupStringAggVal = new ConcurrentHashMap<>();
+        if (this.gbField == NO_GROUPING) {
+            this.StringAggDesc = new TupleDesc(new Type[]{Type.INT_TYPE}, new String[]{"No_Grouping aggregate value"});
+        } else {
+            this.StringAggDesc = new TupleDesc(new Type[]{Type.INT_TYPE, gbfieldtype}, new String[]{"Grouping aggregate value"});
+        }
     }
 
     /**
@@ -37,6 +52,9 @@ public class StringAggregator implements Aggregator {
      */
     public void mergeTupleIntoGroup(Tuple tup) {
         // some code goes here
+        assert tup.getField(gbField).getType().equals(gbFieldType);
+        Field field = gbField == NO_GROUPING ? null : tup.getField(gbField);
+        groupStringAggVal.put(field, groupStringAggVal.getOrDefault(gbField, 0) + 1);
     }
 
     /**
@@ -49,7 +67,21 @@ public class StringAggregator implements Aggregator {
      */
     public OpIterator iterator() {
         // some code goes here
-        throw new UnsupportedOperationException("please implement me for lab2");
+        //throw new UnsupportedOperationException("please implement me for lab2");
+        List<Tuple> tupleList = new ArrayList<>();
+        for (Map.Entry<Field, Integer> entry : groupStringAggVal.entrySet()) {
+            Field groupVal = entry.getKey();
+            Integer aggVal = entry.getValue();
+            Tuple tuple = new Tuple(StringAggDesc);
+            if (gbField == NO_GROUPING) {
+                tuple.setField(0, new IntField(aggVal));
+            } else {
+                tuple.setField(0, groupVal);
+                tuple.setField(1, new IntField(aggVal));
+            }
+            tupleList.add(tuple);
+        }
+        return new TupleIterator(StringAggDesc, tupleList);
     }
 
 }
