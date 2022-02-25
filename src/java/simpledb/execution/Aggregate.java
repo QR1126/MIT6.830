@@ -1,6 +1,7 @@
 package simpledb.execution;
 
 import simpledb.common.DbException;
+import simpledb.common.Type;
 import simpledb.storage.Tuple;
 import simpledb.storage.TupleDesc;
 import simpledb.transaction.TransactionAbortedException;
@@ -21,6 +22,7 @@ public class Aggregate extends Operator {
     private int aField;
     private int gField;
     private Aggregator.Op aop;
+    private Aggregator aggregator;
     /**
      * Constructor.
      * <p>
@@ -40,6 +42,12 @@ public class Aggregate extends Operator {
         this.aField = afield;
         this.gField = gfield;
         this.aop = aop;
+        Type afieldType = child.getTupleDesc().getFieldType(afield);
+        if (afieldType.equals(Type.INT_TYPE)) {
+            this.aggregator = new IntegerAggregator(gfield, child.getTupleDesc().getFieldType(gfield), afield, aop);
+        } else {
+            this.aggregator = new StringAggregator(gfield, child.getTupleDesc().getFieldType(gfield), afield, aop);
+        }
     }
 
     /**
@@ -94,7 +102,7 @@ public class Aggregate extends Operator {
     public void open() throws NoSuchElementException, DbException,
             TransactionAbortedException {
         // some code goes here
-        child.open();
+        aggregator.iterator().open();
         super.open();
     }
 
@@ -107,12 +115,12 @@ public class Aggregate extends Operator {
      */
     protected Tuple fetchNext() throws TransactionAbortedException, DbException {
         // some code goes here
-        return null;
+        return aggregator.iterator().next();
     }
 
     public void rewind() throws DbException, TransactionAbortedException {
         // some code goes here
-        child.rewind();
+        aggregator.iterator().rewind();
     }
 
     /**
@@ -128,23 +136,24 @@ public class Aggregate extends Operator {
      */
     public TupleDesc getTupleDesc() {
         // some code goes here
-        return null;
+        return aggregator.iterator().getTupleDesc();
     }
 
     public void close() {
         // some code goes here
-        child.close();
+        aggregator.iterator().close();
     }
 
     @Override
     public OpIterator[] getChildren() {
         // some code goes here
-        return null;
+        return new OpIterator[]{child};
     }
 
     @Override
     public void setChildren(OpIterator[] children) {
         // some code goes here
+        child = children[0];
     }
 
 }

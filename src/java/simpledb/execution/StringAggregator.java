@@ -54,8 +54,9 @@ public class StringAggregator implements Aggregator {
         // some code goes here
         assert tup.getField(gbField).getType().equals(gbFieldType);
         Field field = gbField == NO_GROUPING ? null : tup.getField(gbField);
-        if (!groupStringAggVal.containsKey(field)) groupStringAggVal.put(field, 0);
-        groupStringAggVal.put(field, groupStringAggVal.get(field) + 1);
+//        if (!groupStringAggVal.containsKey(field)) groupStringAggVal.put(field, 0);
+//        groupStringAggVal.put(field, groupStringAggVal.get(field) + 1);
+        groupStringAggVal.put(field, groupStringAggVal.getOrDefault(field, 0) + 1);
     }
 
     /**
