@@ -49,7 +49,7 @@ public class Aggregate extends Operator {
      */
     public int groupField() {
         // some code goes here
-        return -1;
+        return gField == Aggregator.NO_GROUPING ? Aggregator.NO_GROUPING : gField;
     }
 
     /**
@@ -59,7 +59,7 @@ public class Aggregate extends Operator {
      */
     public String groupFieldName() {
         // some code goes here
-        return null;
+        return gField == Aggregator.NO_GROUPING ? null : child.getTupleDesc().getFieldName(gField);
     }
 
     /**
@@ -67,7 +67,7 @@ public class Aggregate extends Operator {
      */
     public int aggregateField() {
         // some code goes here
-        return -1;
+        return aField;
     }
 
     /**
@@ -76,7 +76,7 @@ public class Aggregate extends Operator {
      */
     public String aggregateFieldName() {
         // some code goes here
-        return null;
+        return child.getTupleDesc().getFieldName(aField);
     }
 
     /**
@@ -84,7 +84,7 @@ public class Aggregate extends Operator {
      */
     public Aggregator.Op aggregateOp() {
         // some code goes here
-        return null;
+        return aop;
     }
 
     public static String nameOfAggregatorOp(Aggregator.Op aop) {
@@ -94,6 +94,8 @@ public class Aggregate extends Operator {
     public void open() throws NoSuchElementException, DbException,
             TransactionAbortedException {
         // some code goes here
+        child.open();
+        super.open();
     }
 
     /**
@@ -110,6 +112,7 @@ public class Aggregate extends Operator {
 
     public void rewind() throws DbException, TransactionAbortedException {
         // some code goes here
+        child.rewind();
     }
 
     /**
@@ -130,6 +133,7 @@ public class Aggregate extends Operator {
 
     public void close() {
         // some code goes here
+        child.close();
     }
 
     @Override

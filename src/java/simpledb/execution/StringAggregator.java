@@ -42,7 +42,7 @@ public class StringAggregator implements Aggregator {
         if (this.gbField == NO_GROUPING) {
             this.StringAggDesc = new TupleDesc(new Type[]{Type.INT_TYPE}, new String[]{"No_Grouping aggregate value"});
         } else {
-            this.StringAggDesc = new TupleDesc(new Type[]{Type.INT_TYPE, gbfieldtype}, new String[]{"Grouping aggregate value"});
+            this.StringAggDesc = new TupleDesc(new Type[]{Type.INT_TYPE, gbfieldtype}, new String[]{"Grouping aggregate value", "Grouping fieldType"});
         }
     }
 
@@ -54,7 +54,8 @@ public class StringAggregator implements Aggregator {
         // some code goes here
         assert tup.getField(gbField).getType().equals(gbFieldType);
         Field field = gbField == NO_GROUPING ? null : tup.getField(gbField);
-        groupStringAggVal.put(field, groupStringAggVal.getOrDefault(gbField, 0) + 1);
+        if (!groupStringAggVal.containsKey(field)) groupStringAggVal.put(field, 0);
+        groupStringAggVal.put(field, groupStringAggVal.get(field) + 1);
     }
 
     /**
