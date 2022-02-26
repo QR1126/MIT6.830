@@ -23,6 +23,7 @@ public class Aggregate extends Operator {
     private int gField;
     private Aggregator.Op aop;
     private Aggregator aggregator;
+    private OpIterator opIterator;
     /**
      * Constructor.
      * <p>
@@ -36,7 +37,7 @@ public class Aggregate extends Operator {
      *               there is no grouping
      * @param aop    The aggregation operator to use
      */
-    public Aggregate(OpIterator child, int afield, int gfield, Aggregator.Op aop) {
+    public Aggregate(OpIterator child, int afield, int gfield, Aggregator.Op aop) throws DbException, TransactionAbortedException {
         // some code goes here
         this.child = child;
         this.aField = afield;
@@ -48,6 +49,14 @@ public class Aggregate extends Operator {
         } else {
             this.aggregator = new StringAggregator(gfield, child.getTupleDesc().getFieldType(gfield), afield, aop);
         }
+        while (child.hasNext()) {
+            try {
+                aggregator.mergeTupleIntoGroup(child.next());
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+        this.opIterator = aggregator.iterator();
     }
 
     /**
@@ -102,8 +111,8 @@ public class Aggregate extends Operator {
     public void open() throws NoSuchElementException, DbException,
             TransactionAbortedException {
         // some code goes here
-        aggregator.iterator().open();
         super.open();
+        opIterator.open();
     }
 
     /**
@@ -115,12 +124,13 @@ public class Aggregate extends Operator {
      */
     protected Tuple fetchNext() throws TransactionAbortedException, DbException {
         // some code goes here
-        return aggregator.iterator().next();
+        if (opIterator.hasNext()) return opIterator.next();
+        else return null;
     }
 
     public void rewind() throws DbException, TransactionAbortedException {
         // some code goes here
-        aggregator.iterator().rewind();
+        opIterator.rewind();
     }
 
     /**
@@ -141,13 +151,13 @@ public class Aggregate extends Operator {
 
     public void close() {
         // some code goes here
-        aggregator.iterator().close();
+        opIterator.close();
     }
 
     @Override
     public OpIterator[] getChildren() {
         // some code goes here
-        return new OpIterator[]{child};
+        return new OpIterator[]{ child };
     }
 
     @Override

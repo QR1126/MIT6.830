@@ -47,7 +47,7 @@ public class IntegerAggregator implements Aggregator {
         if (this.gbField == NO_GROUPING) {
             this.integerAggDesc = new TupleDesc(new Type[]{Type.INT_TYPE}, new String[]{"No_Grouping aggregate value"});
         } else {
-            this.integerAggDesc = new TupleDesc(new Type[]{Type.INT_TYPE, gbfieldtype}, new String[]{"Grouping aggregate value", "Grouping fieldType"});
+            this.integerAggDesc = new TupleDesc(new Type[]{gbfieldtype, Type.INT_TYPE}, new String[]{"Grouping fieldType", "Grouping aggregate value"});
         }
     }
 
