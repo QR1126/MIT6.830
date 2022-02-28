@@ -149,11 +149,12 @@ public class BufferPool {
         throws DbException, IOException, TransactionAbortedException {
         // some code goes here
         // not necessary for lab1
-        HeapFile heapFile = (HeapFile) Database.getCatalog().getDatabaseFile(tableId);
-        List<Page> pages = heapFile.insertTuple(tid, t);
-        for (Page page : pages) {
-            page.markDirty(true, tid);
-            pageBuffer.put(t.getRecordId().getPageId().hashCode(), page);
+        PageId pid = t.getRecordId().getPageId();
+        DbFile dbFile = Database.getCatalog().getDatabaseFile(tableId);
+        List<Page> dirtyPages = dbFile.insertTuple(tid, t);
+        for (Page dirtyPage : dirtyPages) {
+            dirtyPage.markDirty(true, tid);
+            pageBuffer.put(pid.hashCode(), dirtyPage);
         }
     }
 
@@ -174,11 +175,13 @@ public class BufferPool {
         throws DbException, IOException, TransactionAbortedException {
         // some code goes here
         // not necessary for lab1
-        HeapFile heapFile = (HeapFile) Database.getBufferPool().getPage(tid, t.getRecordId().getPageId(), Permissions.READ_WRITE);
-        List<Page> pages = heapFile.deleteTuple(tid, t);
-        for (Page page : pages) {
-            page.markDirty(true, tid);
-            pageBuffer.put(t.getRecordId().getPageId().hashCode(), page);
+        DbFile dbFile = Database.getCatalog().getDatabaseFile(t.getRecordId().getPageId().getTableId());
+        PageId pid = t.getRecordId().getPageId();
+        if (dbFile == null) return;
+        List<Page> dirtyPages = dbFile.deleteTuple(tid, t);
+        for (Page dirtyPage : dirtyPages) {
+            dirtyPage.markDirty(true, tid);
+            pageBuffer.put(pid.hashCode(), dirtyPage);
         }
     }
 

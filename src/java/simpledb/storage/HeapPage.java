@@ -257,7 +257,7 @@ public class HeapPage implements Page {
         int tupleNumber = recordId.getTupleNumber();
         HeapPageId heapPageId = (HeapPageId) recordId.getPageId();
         if (!heapPageId.equals(this.pid) || !isSlotUsed(tupleNumber)) {
-            throw new DbException("this tuple is not on this page");
+            throw new DbException("This tuple is not on this page or slot is empty");
         }
         tuples[tupleNumber] = null;
         markSlotUsed(tupleNumber, false);
@@ -275,7 +275,7 @@ public class HeapPage implements Page {
         // not necessary for lab1
         TupleDesc tupleDesc = t.getTupleDesc();
         if (getNumEmptySlots() == 0 || !tupleDesc.equals(this.td)) {
-            throw new DbException("this page is full or tupledesc is mismatch");
+            throw new DbException("This page is full or tuple desc is mismatch");
         }
         int index = numSlots - getNumEmptySlots();
         this.tuples[index] = t;

@@ -124,8 +124,7 @@ public class Aggregate extends Operator {
      */
     protected Tuple fetchNext() throws TransactionAbortedException, DbException {
         // some code goes here
-        if (opIterator.hasNext()) return opIterator.next();
-        else return null;
+        return opIterator.hasNext() ? opIterator.next() : null;
     }
 
     public void rewind() throws DbException, TransactionAbortedException {
@@ -152,6 +151,7 @@ public class Aggregate extends Operator {
     public void close() {
         // some code goes here
         opIterator.close();
+        super.close();
     }
 
     @Override
