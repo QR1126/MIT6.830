@@ -63,7 +63,7 @@ public class HeapFile implements DbFile {
      */
     public int getId() {
         // some code goes here
-        return this.fileId;
+        return file.getAbsolutePath().hashCode();
     }
 
     /**
@@ -84,9 +84,7 @@ public class HeapFile implements DbFile {
         try {
             RandomAccessFile randomAccessFile = new RandomAccessFile(file, "r");
             randomAccessFile.seek(offset);
-            for (int i = 0; i < BufferPool.getPageSize(); i++) {
-                data[i] = (byte) randomAccessFile.read();
-            }
+            randomAccessFile.readFully(data);
             HeapPage heapPage = new HeapPage((HeapPageId) pid, data);
             randomAccessFile.close();
             return heapPage;
@@ -124,15 +122,16 @@ public class HeapFile implements DbFile {
         // some code goes here
         // not necessary for lab1
         for (int i = 0; i < this.numPages(); i++) {
-            HeapPage heapPage = (HeapPage) Database.getBufferPool().getPage(tid, new HeapPageId(getId(), i), Permissions.READ_WRITE);
+            PageId pid = new HeapPageId(getId(), i);
+            HeapPage heapPage = (HeapPage) Database.getBufferPool().getPage(tid, pid, Permissions.READ_WRITE);
             if (heapPage.getNumEmptySlots() == 0) continue;
             heapPage.insertTuple(t);
             return new ArrayList<Page>(){{add(heapPage);}};
         }
         HeapPage heapPage = new HeapPage(new HeapPageId(getId(), numPages()), HeapPage.createEmptyPageData());
         heapPage.insertTuple(t);
-        this.writePage(heapPage);
-        return new ArrayList<>();
+        writePage(heapPage);
+        return new ArrayList<Page>(){{add(heapPage);}};
     }
 
     // see DbFile.java for javadocs

@@ -335,9 +335,9 @@ public class HeapPage implements Page {
         int byteIndex = i / 8;
         int bitIndex = i % 8;
         if (value) {
-            this.header[byteIndex] |= 1 << bitIndex;
+            this.header[byteIndex] |= (1 << bitIndex);
         } else {
-            this.header[byteIndex] ^= 1 << bitIndex;
+            this.header[byteIndex] ^= (1 << bitIndex);
         }
     }
 

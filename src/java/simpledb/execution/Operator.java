@@ -5,6 +5,7 @@ import simpledb.common.DbException;
 import simpledb.storage.Tuple;
 import simpledb.storage.TupleDesc;
 
+import java.io.IOException;
 import java.util.NoSuchElementException;
 
 /**
@@ -20,15 +21,24 @@ public abstract class Operator implements OpIterator {
         if (!this.open)
             throw new IllegalStateException("Operator not yet open");
         
-        if (next == null)
-            next = fetchNext();
+        if (next == null) {
+            try {
+                next = fetchNext();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
         return next != null;
     }
 
     public Tuple next() throws DbException, TransactionAbortedException,
             NoSuchElementException {
         if (next == null) {
-            next = fetchNext();
+            try {
+                next = fetchNext();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
             if (next == null)
                 throw new NoSuchElementException();
         }
@@ -47,7 +57,7 @@ public abstract class Operator implements OpIterator {
      *         finished.
      */
     protected abstract Tuple fetchNext() throws DbException,
-            TransactionAbortedException;
+            TransactionAbortedException, IOException;
 
     /**
      * Closes this iterator. If overridden by a subclass, they should call
