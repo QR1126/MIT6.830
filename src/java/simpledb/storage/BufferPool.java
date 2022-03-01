@@ -9,7 +9,11 @@ import simpledb.transaction.TransactionId;
 
 import java.io.*;
 
+import java.nio.file.Path;
+import java.sql.PreparedStatement;
+import java.util.Date;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -35,7 +39,84 @@ public class BufferPool {
     public static final int DEFAULT_PAGES = 50;
 
     private final ConcurrentHashMap<Integer, Page> pageBuffer;
+    private final lruManager bufferPoolManager;
     private final int numPages;
+
+    private class lruNode {
+        Page page;
+        lruNode prev;
+        lruNode next;
+
+        public lruNode(Page page) {
+            this.page = page;
+        }
+    }
+
+    private class lruManager {
+        lruNode dummyHead;
+        lruNode dummyTail;
+        int capacity;
+        int size;
+        Map<PageId, lruNode> map;
+
+        public lruManager(int capacity) {
+            this.capacity = capacity;
+            this.size = 0;
+            map = new ConcurrentHashMap<>();
+            dummyHead = new lruNode(null);
+            dummyTail = new lruNode(null);
+            dummyHead.next = dummyTail;
+            dummyTail.prev = dummyHead;
+        }
+
+        public void put(lruNode node) {
+            int key = node.page.getId().hashCode();
+            PageId pageId = node.page.getId();
+            map.put(pageId, node);
+            if (pageBuffer.containsKey(key)) {
+                pageBuffer.put(key, node.page);
+                moveToHead(node);
+            } else {
+                if (getSize() == capacity) {
+                    removeNode(dummyTail.prev);
+                }
+                pageBuffer.put(key, node.page);
+                addToHead(node);
+            }
+        }
+
+        public void delete(lruNode node) {
+            removeNode(node);
+            pageBuffer.remove(node.page.getId().hashCode());
+            map.remove(node.page.getId());
+        }
+
+        public lruNode getTail() {
+            return dummyTail.prev;
+        }
+
+        public void addToHead(lruNode node) {
+            node.next = dummyHead.next;
+            node.prev = dummyHead;
+            dummyHead.next.prev = node;
+            dummyHead.next = node;
+        }
+
+        public int getSize() {
+            return size = pageBuffer.size();
+        }
+
+        public void moveToHead(lruNode node) {
+            removeNode(node);
+            addToHead(node);
+        }
+
+        public void removeNode(lruNode node) {
+            node.prev.next = node.next;
+            node.next.prev = node.prev;
+        }
+    }
+
     /**
      * Creates a BufferPool that caches up to numPages pages.
      *
@@ -45,6 +126,7 @@ public class BufferPool {
         // some code goes here
         this.numPages = numPages;
         pageBuffer = new ConcurrentHashMap<>();
+        bufferPoolManager = new lruManager(numPages);
     }
     
     public static int getPageSize() {
@@ -82,7 +164,8 @@ public class BufferPool {
         if (!pageBuffer.containsKey(pid.hashCode())) {
             DbFile dbFile = Database.getCatalog().getDatabaseFile(pid.getTableId());
             Page page = dbFile.readPage(pid);
-            pageBuffer.put(pid.hashCode(), page);
+//            pageBuffer.put(pid.hashCode(), page);
+            bufferPoolManager.put(new lruNode(page));
         }
         return pageBuffer.get(pid.hashCode());
     }
@@ -193,7 +276,10 @@ public class BufferPool {
     public synchronized void flushAllPages() throws IOException {
         // some code goes here
         // not necessary for lab1
-
+        for (Map.Entry<Integer, Page> entry : pageBuffer.entrySet()) {
+            Page page = entry.getValue();
+            if (page.isDirty() != null) flushPage(page.getId());
+        }
     }
 
     /** Remove the specific page id from the buffer pool.
@@ -207,6 +293,8 @@ public class BufferPool {
     public synchronized void discardPage(PageId pid) {
         // some code goes here
         // not necessary for lab1
+        lruNode deleteNode = bufferPoolManager.map.get(pid);
+        bufferPoolManager.delete(deleteNode);
     }
 
     /**
@@ -216,6 +304,10 @@ public class BufferPool {
     private synchronized  void flushPage(PageId pid) throws IOException {
         // some code goes here
         // not necessary for lab1
+        DbFile dbFile = Database.getCatalog().getDatabaseFile(pid.getTableId());
+        Page page = pageBuffer.get(pid.hashCode());
+        page.markDirty(false, new TransactionId());
+        dbFile.writePage(page);
     }
 
     /** Write all pages of the specified transaction to disk.
@@ -229,9 +321,12 @@ public class BufferPool {
      * Discards a page from the buffer pool.
      * Flushes the page to disk to ensure dirty pages are updated on disk.
      */
-    private synchronized  void evictPage() throws DbException {
+    private synchronized  void evictPage() throws DbException, IOException {
         // some code goes here
         // not necessary for lab1
+        lruNode lastNode = bufferPoolManager.getTail();
+        discardPage(lastNode.page.getId());
+        flushPage(lastNode.page.getId());
     }
 
 }

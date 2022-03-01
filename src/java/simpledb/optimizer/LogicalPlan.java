@@ -2,9 +2,11 @@ package simpledb.optimizer;
 import simpledb.common.Catalog;
 import simpledb.common.Database;
 import simpledb.ParsingException;
+import simpledb.common.DbException;
 import simpledb.common.Type;
 import simpledb.execution.*;
 import simpledb.storage.*;
+import simpledb.transaction.TransactionAbortedException;
 import simpledb.transaction.TransactionId;
 
 import java.util.*;
@@ -459,7 +461,7 @@ public class LogicalPlan {
 
         if (hasAgg) {
             TupleDesc td = node.getTupleDesc();
-            Aggregate aggNode;
+            Aggregate aggNode = null;//this null is add by hand
             try {
                 aggNode = new Aggregate(node,
                                         td.fieldNameToIndex(aggField),
@@ -467,6 +469,10 @@ public class LogicalPlan {
                                 getAggOp(aggOp));
             } catch (NoSuchElementException | IllegalArgumentException e) {
                 throw new simpledb.ParsingException(e);
+            } catch (TransactionAbortedException e) {
+                e.printStackTrace();
+            } catch (DbException e) {
+                e.printStackTrace();
             }
             node = aggNode;
         }
