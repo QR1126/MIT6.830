@@ -2,9 +2,18 @@ package simpledb.optimizer;
 
 import simpledb.execution.Predicate;
 
+import java.math.BigDecimal;
+
 /** A class to represent a fixed-width histogram over a single integer-based field.
  */
 public class IntHistogram {
+
+    private int[] buckets;
+    private int numOfBuckets;
+    private int min;
+    private int max;
+    private int wb;
+    private int numOfTuples;
 
     /**
      * Create a new IntHistogram.
@@ -24,6 +33,12 @@ public class IntHistogram {
      */
     public IntHistogram(int buckets, int min, int max) {
     	// some code goes here
+        this.buckets = new int[buckets];
+        this.numOfBuckets = buckets;
+        this.min = min;
+        this.max = max;
+        this.wb = (max - min + 1) / numOfBuckets;
+        this.numOfTuples = 0;
     }
 
     /**
@@ -32,6 +47,9 @@ public class IntHistogram {
      */
     public void addValue(int v) {
     	// some code goes here
+        int index = v / wb;
+        buckets[index]++;
+        numOfTuples++;
     }
 
     /**
@@ -47,9 +65,44 @@ public class IntHistogram {
     public double estimateSelectivity(Predicate.Op op, int v) {
 
     	// some code goes here
-        return -1.0;
+        switch (op) {
+            case LESS_THAN: return estimateLessThan(v);
+            case EQUALS: return estimateEquals(v);
+            case GREATER_THAN: return estimateGreaterThan(v);
+            case NOT_EQUALS: return estimateNotEquals(v);
+            case LESS_THAN_OR_EQ: return estimateLessThanOrEq(v);
+            case GREATER_THAN_OR_EQ: return estimateGreaterThanOrEq(v);
+        }
+        return 0.0;
     }
-    
+
+    private double estimateGreaterThanOrEq(int v) {
+        return 0.0;
+    }
+
+    private double estimateLessThanOrEq(int v) {
+        return 0.0;
+    }
+
+    private double estimateNotEquals(int v) {
+        return 0.0;
+    }
+
+    private double estimateGreaterThan(int v) {
+        return 0.0;
+    }
+
+    private double estimateEquals(int v) {
+        int index = v / wb;
+        int height = buckets[index];
+        double selectivity = ((double) height / (double) wb) / (double) numOfTuples;
+        return selectivity;
+    }
+
+    private double estimateLessThan(int v) {
+        return 0.0;
+    }
+
     /**
      * @return
      *     the average selectivity of this histogram.
@@ -69,6 +122,6 @@ public class IntHistogram {
      */
     public String toString() {
         // some code goes here
-        return null;
+        return buckets.toString();
     }
 }

@@ -278,7 +278,7 @@ public class BufferPool {
         // not necessary for lab1
         for (Map.Entry<Integer, Page> entry : pageBuffer.entrySet()) {
             Page page = entry.getValue();
-            if (page.isDirty() != null) flushPage(page.getId());
+            flushPage(page.getId());
         }
     }
 
@@ -306,7 +306,8 @@ public class BufferPool {
         // not necessary for lab1
         DbFile dbFile = Database.getCatalog().getDatabaseFile(pid.getTableId());
         Page page = pageBuffer.get(pid.hashCode());
-        page.markDirty(false, new TransactionId());
+        if (page.isDirty() == null) return;
+        page.markDirty(false, null);
         dbFile.writePage(page);
     }
 
