@@ -32,7 +32,7 @@ public class Catalog {
         map = new ConcurrentHashMap<>();
     }
 
-    private static class Table {
+    public static class Table {
         private DbFile file;
         private String name;
         private String pkeyField;
@@ -46,6 +46,8 @@ public class Catalog {
         public String getName() {
             return name;
         }
+
+        public DbFile getFile() { return file; }
     }
 
     private Map<Integer, Table> map;
@@ -131,7 +133,7 @@ public class Catalog {
         return table.pkeyField;
     }
 
-    private Table getTable(int tableid) {
+    public Table getTable(int tableid) {
         Table table = map.get(tableid);
         if (table == null) throw new NoSuchElementException();
         return table;
@@ -142,6 +144,9 @@ public class Catalog {
         return map.keySet().iterator();
     }
 
+    /** get the name of this table
+     * @param id tableId
+     * */
     public String getTableName(int id) {
         // some code goes here
         Table table = getTable(id);
