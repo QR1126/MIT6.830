@@ -12,7 +12,7 @@ public class IntHistogram {
     private int numOfBuckets;
     private int min;
     private int max;
-    private int wb;
+    private double wb;
     private int numOfTuples;
 
     /**
@@ -37,7 +37,7 @@ public class IntHistogram {
         this.numOfBuckets = buckets;
         this.min = min;
         this.max = max;
-        this.wb = (max - min + 1) / numOfBuckets;
+        this.wb = (double) (max - min + 1) / numOfBuckets;
         this.numOfTuples = 0;
     }
 
@@ -47,9 +47,21 @@ public class IntHistogram {
      */
     public void addValue(int v) {
     	// some code goes here
-        int index = v / wb;
+        int index = getIndex(v);
         buckets[index]++;
         numOfTuples++;
+    }
+
+    /** get index of value v
+     * */
+    private int getIndex(int v) {
+        if (min >= 0) {
+            int index = v == max ? numOfBuckets - 1 : (int)( v / wb);
+            return index;
+        } else {
+            int index = (int) ((v - min) / wb);
+            return index;
+        }
     }
 
     /**
@@ -77,30 +89,63 @@ public class IntHistogram {
     }
 
     private double estimateGreaterThanOrEq(int v) {
-        return 0.0;
+        double eqSelectivity = estimateEquals(v);
+        double greatSelectivity = estimateGreaterThan(v);
+        return eqSelectivity + greatSelectivity;
     }
 
     private double estimateLessThanOrEq(int v) {
-        return 0.0;
+        double eqSelectivity = estimateEquals(v);
+        double lessSelectivity = estimateLessThan(v);
+        return eqSelectivity + lessSelectivity;
     }
 
     private double estimateNotEquals(int v) {
-        return 0.0;
+        return 1.0 - estimateEquals(v);
     }
 
     private double estimateGreaterThan(int v) {
-        return 0.0;
+        if (v <= min) return 1.0;
+        if (v >= max) return 0.0;
+        int index = getIndex(v);
+        int height = buckets[index];
+        double bf = (double) height / (double) numOfTuples;
+        int bright = (int) (min + 1 + index * wb);
+        double bpart = (bright - v) / wb;
+        double selectivity = bpart * bf;
+        for (int i = index + 1; i < numOfBuckets - 1; i++) {
+            selectivity += estimateEqUsedIndex(i);
+        }
+        return selectivity;
+    }
+
+    private double estimateEqUsedIndex(int index) {
+        int height = buckets[index];
+        double selectivity = ((double) height / (double) wb) / (double) numOfTuples;
+        return selectivity;
     }
 
     private double estimateEquals(int v) {
-        int index = v / wb;
+        if (v <= min || v >= max) return 0.0;
+        int index = getIndex(v);
         int height = buckets[index];
         double selectivity = ((double) height / (double) wb) / (double) numOfTuples;
         return selectivity;
     }
 
     private double estimateLessThan(int v) {
-        return 0.0;
+        if (v >= max) return 1.0;
+        if (v <= min) return 0.0;
+        int index = getIndex(v);
+        int height = buckets[index];
+        double bf = (double) height / (double) numOfTuples;
+        int bleft = (int) (min + index * wb);
+        double bpart = (bleft - v) / wb;
+        double selectivity = bpart * bf;
+        for (int i = index - 1; i >= 0; i--) {
+            selectivity += estimateEqUsedIndex(i);
+        }
+        return selectivity;
     }
 
     /**
