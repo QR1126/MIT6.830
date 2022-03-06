@@ -156,7 +156,7 @@ public class HeapFile implements DbFile {
         private TransactionId tid;
         private Iterator<Tuple> it;
         private HeapFile heapFile;
-        private int numberOfPage;
+        private int pgNumber;
 
         public heapFileIterator(TransactionId tid, HeapFile heapFile) {
             this.tid = tid;
@@ -165,13 +165,13 @@ public class HeapFile implements DbFile {
 
         @Override
         public void open() throws DbException, TransactionAbortedException {
-            numberOfPage = 0;
-            it = getIt(numberOfPage);
+            pgNumber = 0;
+            it = getIt(pgNumber);
         }
 
-        private Iterator<Tuple> getIt(int numberOfPage) throws TransactionAbortedException, DbException {
-            if (numberOfPage >= 0 && numberOfPage < heapFile.numPages()) {
-                HeapPageId heapPageId = new HeapPageId(heapFile.getId(), numberOfPage);
+        private Iterator<Tuple> getIt(int pgNumber) throws TransactionAbortedException, DbException {
+            if (pgNumber >= 0 && pgNumber < heapFile.numPages()) {
+                HeapPageId heapPageId = new HeapPageId(heapFile.getId(), pgNumber);
                 HeapPage heapPage = (HeapPage) Database.getBufferPool().getPage(tid, heapPageId, Permissions.READ_ONLY);
                 return heapPage.iterator();
             }
@@ -185,17 +185,13 @@ public class HeapFile implements DbFile {
             if (it == null) {
                 return false;
             }
-            if (!it.hasNext()) {
-                if (numberOfPage < this.numberOfPage) {
-                    it = getIt(++numberOfPage);
-                    return it.hasNext();
-                }
-                else {
-                    return false;
-                }
-            }
+            if (it.hasNext()) return true;
             else {
-                return true;
+                if (pgNumber < this.heapFile.numPages() - 1) {
+                    it = getIt(++pgNumber);
+                    return true;
+                }
+                else return false;
             }
         }
 

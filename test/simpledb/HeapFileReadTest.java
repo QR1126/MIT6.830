@@ -103,6 +103,18 @@ public class HeapFileReadTest extends SimpleDbTestBase {
         }
         assertEquals(3, count);
         it.close();
+
+        HeapFile bigFile = SystemTestUtil.createRandomHeapFile(2, 10200, null, null);
+        DbFileIterator iterator = bigFile.iterator(tid);
+
+        iterator.open();
+        int cnt = 0;
+        while (iterator.hasNext()) {
+            assertNotNull(iterator.next());
+            cnt += 1;
+        }
+        assertEquals(10200, cnt);
+        iterator.close();
     }
 
     @Test
