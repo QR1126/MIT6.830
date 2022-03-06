@@ -114,7 +114,7 @@ public class Join extends Operator {
      */
     protected Tuple fetchNext() throws TransactionAbortedException, DbException {
         // some code goes here
-        while (child1.hasNext()) {
+        while (child1.hasNext() || child2.hasNext()) {
             if (isUpdate) tuple1 = child1.next();
             while (child2.hasNext()) {
                 Tuple tuple2 = child2.next();
