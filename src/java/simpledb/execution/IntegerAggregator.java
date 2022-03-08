@@ -43,7 +43,8 @@ public class IntegerAggregator implements Aggregator {
         this.gbFieldType = gbfieldtype;
         this.aField = afield;
         this.what = what;
-        this.groupIntegerAggVal = new ConcurrentHashMap<>();
+        // remember do not use ConcurrentHashMap, because it's key can not be null
+        this.groupIntegerAggVal = new HashMap<>();
         if (this.gbField == NO_GROUPING) {
             this.integerAggDesc = new TupleDesc(new Type[]{Type.INT_TYPE}, new String[]{"No_Grouping aggregate value"});
         } else {

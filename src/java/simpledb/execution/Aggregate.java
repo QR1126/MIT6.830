@@ -45,10 +45,15 @@ public class Aggregate extends Operator {
         this.aop = aop;
         Type afieldType = child.getTupleDesc().getFieldType(afield);
         if (afieldType.equals(Type.INT_TYPE)) {
-            this.aggregator = new IntegerAggregator(gfield, child.getTupleDesc().getFieldType(gfield), afield, aop);
+            this.aggregator = new IntegerAggregator(gfield,
+                    (gField == Aggregator.NO_GROUPING ? null : child.getTupleDesc().getFieldType(gfield)),
+                    afield, aop);
         } else {
-            this.aggregator = new StringAggregator(gfield, child.getTupleDesc().getFieldType(gfield), afield, aop);
+            this.aggregator = new StringAggregator(gfield,
+                    (gField == Aggregator.NO_GROUPING ? null : child.getTupleDesc().getFieldType(gfield)),
+                    afield, aop);
         }
+        child.open();
         while (child.hasNext()) {
             try {
                 aggregator.mergeTupleIntoGroup(child.next());
