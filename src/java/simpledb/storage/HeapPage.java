@@ -274,9 +274,8 @@ public class HeapPage implements Page {
         // some code goes here
         // not necessary for lab1
         TupleDesc tupleDesc = t.getTupleDesc();
-        if (getNumEmptySlots() == 0 || !tupleDesc.equals(this.td)) {
-            throw new DbException("This page is full or tuple desc is mismatch");
-        }
+        if (getNumEmptySlots() == 0) throw new DbException("This page is full");
+        if (!td.equals(tupleDesc)) throw new DbException("TupleDesc is mismatch");
         int index = numSlots - getNumEmptySlots();
         this.tuples[index] = t;
         t.setRecordId(new RecordId(this.pid, index));

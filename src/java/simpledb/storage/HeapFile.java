@@ -142,6 +142,7 @@ public class HeapFile implements DbFile {
         HeapPageId heapPageId = (HeapPageId) t.getRecordId().getPageId();
         if (heapPageId.getTableId() != getId()) throw new DbException("the tuple cannot be deleted or is not a member of the file");
         HeapPage heapPage = (HeapPage) Database.getBufferPool().getPage(tid, heapPageId, Permissions.READ_WRITE);
+        heapPage.deleteTuple(t);
         return new ArrayList<Page>(){{add(heapPage);}};
     }
 
@@ -180,6 +181,7 @@ public class HeapFile implements DbFile {
             @Override
             public Tuple next() throws DbException, TransactionAbortedException, NoSuchElementException {
                 if (!hasNext()) throw new NoSuchElementException();
+                assert iterator.hasNext();
                 return iterator.next();
             }
 
