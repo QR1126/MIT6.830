@@ -238,9 +238,9 @@ public class BufferPool {
         throws DbException, IOException, TransactionAbortedException {
         // some code goes here
         // not necessary for lab1
-        PageId pid = t.getRecordId().getPageId();
         DbFile dbFile = Database.getCatalog().getDatabaseFile(tableId);
         List<Page> dirtyPages = dbFile.insertTuple(tid, t);
+        PageId pid = t.getRecordId().getPageId();
         for (Page dirtyPage : dirtyPages) {
             if (pageBuffer.containsKey(dirtyPage.getId())) {
                 dirtyPage.markDirty(true, tid);
@@ -272,9 +272,9 @@ public class BufferPool {
         // some code goes here
         // not necessary for lab1
         DbFile dbFile = Database.getCatalog().getDatabaseFile(t.getRecordId().getPageId().getTableId());
-        PageId pid = t.getRecordId().getPageId();
         if (dbFile == null) return;
         List<Page> dirtyPages = dbFile.deleteTuple(tid, t);
+        PageId pid = t.getRecordId().getPageId();
         for (Page dirtyPage : dirtyPages) {
             if (pageBuffer.containsKey(dirtyPage.getId())) {
                 dirtyPage.markDirty(true, tid);
