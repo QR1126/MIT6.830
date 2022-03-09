@@ -43,7 +43,7 @@ public class BufferPool {
     private final lruManager bufferPoolManager;
     private final int numPages;
 
-    private class lruNode {
+    private final class lruNode {
         Page page;
         lruNode prev;
         lruNode next;
@@ -53,7 +53,7 @@ public class BufferPool {
         }
     }
 
-    private class lruManager {
+    private final class lruManager {
         lruNode dummyHead;
         lruNode dummyTail;
         int capacity;
@@ -79,12 +79,14 @@ public class BufferPool {
             pageIdlruNodeMap.put(pageId, node);
             pageBuffer.put(pageId, node.page);
             addToHead(node);
+            size++;
         }
 
         public void delete(lruNode node) {
             removeNode(node);
             pageBuffer.remove(node.page.getId());
             pageIdlruNodeMap.remove(node.page.getId());
+            size--;
         }
 
         public lruNode getTail() {
@@ -99,7 +101,7 @@ public class BufferPool {
         }
 
         public int getSize() {
-            return size = pageBuffer.size();
+            return size;
         }
 
         public void moveToHead(lruNode node) {
@@ -164,7 +166,7 @@ public class BufferPool {
         } else {
             DbFile dbFile = Database.getCatalog().getDatabaseFile(pid.getTableId());
             Page page = dbFile.readPage(pid);
-            if (pageBuffer.size() == numPages) {
+            if (bufferPoolManager.getSize() == numPages) {
                 try {
                     evictPage();
                 } catch (IOException e) {
@@ -248,7 +250,7 @@ public class BufferPool {
                 bufferPoolManager.moveToHead(dirtyNode);
             } else {
                 dirtyPage.markDirty(true, tid);
-                if (pageBuffer.size() == numPages) { evictPage(); }
+                if (bufferPoolManager.getSize() == numPages) { evictPage(); }
                 bufferPoolManager.put(new lruNode(dirtyPage));
             }
         }
@@ -274,7 +276,6 @@ public class BufferPool {
         DbFile dbFile = Database.getCatalog().getDatabaseFile(t.getRecordId().getPageId().getTableId());
         if (dbFile == null) return;
         List<Page> dirtyPages = dbFile.deleteTuple(tid, t);
-        PageId pid = t.getRecordId().getPageId();
         for (Page dirtyPage : dirtyPages) {
             if (pageBuffer.containsKey(dirtyPage.getId())) {
                 dirtyPage.markDirty(true, tid);
@@ -282,7 +283,7 @@ public class BufferPool {
                 bufferPoolManager.moveToHead(dirtyNode);
             } else {
                 dirtyPage.markDirty(true, tid);
-                if (pageBuffer.size() == numPages) { evictPage(); }
+                if (bufferPoolManager.getSize() == numPages) { evictPage(); }
                 bufferPoolManager.put(new lruNode(dirtyPage));
             }
         }
@@ -313,8 +314,10 @@ public class BufferPool {
     public synchronized void discardPage(PageId pid) {
         // some code goes here
         // not necessary for lab1
-        lruNode deleteNode = bufferPoolManager.pageIdlruNodeMap.get(pid);
-        bufferPoolManager.delete(deleteNode);
+        if (pageBuffer.containsKey(pid)) {
+            lruNode deleteNode = bufferPoolManager.pageIdlruNodeMap.get(pid);
+            bufferPoolManager.delete(deleteNode);
+        }
     }
 
     /**
@@ -324,11 +327,11 @@ public class BufferPool {
     private synchronized  void flushPage(PageId pid) throws IOException {
         // some code goes here
         // not necessary for lab1
-        DbFile dbFile = Database.getCatalog().getDatabaseFile(pid.getTableId());
-        Page page = pageBuffer.get(pid.hashCode());
+        Page page = pageBuffer.get(pid);
         if (page.isDirty() == null) return;
-        page.markDirty(false, null);
+        DbFile dbFile = Database.getCatalog().getDatabaseFile(pid.getTableId());
         dbFile.writePage(page);
+        page.markDirty(false, null);
     }
 
     /** Write all pages of the specified transaction to disk.
@@ -346,8 +349,8 @@ public class BufferPool {
         // some code goes here
         // not necessary for lab1
         lruNode lastNode = bufferPoolManager.getTail();
-        discardPage(lastNode.page.getId());
         flushPage(lastNode.page.getId());
+        discardPage(lastNode.page.getId());
     }
 
 }
