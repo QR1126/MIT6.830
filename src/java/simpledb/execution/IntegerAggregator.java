@@ -61,7 +61,6 @@ public class IntegerAggregator implements Aggregator {
      */
     public void mergeTupleIntoGroup(Tuple tup) throws Exception {
         // some code goes here
-        assert tup.getField(gbField).getType() == gbFieldType;
         Field field = this.gbField == NO_GROUPING ? null : tup.getField(gbField);
         Object oldValue = groupIntegerAggVal.get(field);
         if (oldValue == null) {

@@ -328,6 +328,7 @@ public class BufferPool {
         // some code goes here
         // not necessary for lab1
         Page page = pageBuffer.get(pid);
+        if (page == null) return;
         if (page.isDirty() == null) return;
         DbFile dbFile = Database.getCatalog().getDatabaseFile(pid.getTableId());
         dbFile.writePage(page);

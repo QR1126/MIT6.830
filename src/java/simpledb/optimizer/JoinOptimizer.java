@@ -48,7 +48,8 @@ public class JoinOptimizer {
      *            The right join node's child
      */
     public static OpIterator instantiateJoin(LogicalJoinNode lj,
-                                             OpIterator plan1, OpIterator plan2) throws ParsingException {
+                                             OpIterator plan1,
+                                             OpIterator plan2) throws ParsingException {
 
         int t1id = 0, t2id = 0;
         OpIterator j;
@@ -130,7 +131,7 @@ public class JoinOptimizer {
             // HINT: You may need to use the variable "j" if you implemented
             // a join algorithm that's more complicated than a basic
             // nested-loops join.
-            return -1.0;
+            return cost1 + card1 * cost2 + card1 * card2;
         }
     }
 
@@ -170,13 +171,29 @@ public class JoinOptimizer {
      * Estimate the join cardinality of two tables.
      * */
     public static int estimateTableJoinCardinality(Predicate.Op joinOp,
-                                                   String table1Alias, String table2Alias, String field1PureName,
-                                                   String field2PureName, int card1, int card2, boolean t1pkey,
-                                                   boolean t2pkey, Map<String, TableStats> stats,
+                                                   String table1Alias, String table2Alias,
+                                                   String field1PureName, String field2PureName,
+                                                   int card1, int card2,
+                                                   boolean t1pkey, boolean t2pkey,
+                                                   Map<String, TableStats> stats,
                                                    Map<String, Integer> tableAliasToId) {
-        int card = 1;
         // some code goes here
-        return card <= 0 ? 1 : card;
+        if (joinOp.equals(Predicate.Op.EQUALS) || joinOp.equals(Predicate.Op.NOT_EQUALS)
+                || joinOp.equals(Predicate.Op.LIKE)) {
+            int eqcard;
+            if (t1pkey && t2pkey) {
+                eqcard = Math.min(card1, card2);
+            } else if (t1pkey) {
+                eqcard = card2;
+            } else if (t2pkey) {
+                eqcard = card1;
+            } else {
+                eqcard = Math.max(card1, card2);
+            }
+            return joinOp == Predicate.Op.NOT_EQUALS ? card1 * card2 - eqcard : eqcard;
+        } else {
+            return ((int) (0.3 * card1 * card2));
+        }
     }
 
     /**
