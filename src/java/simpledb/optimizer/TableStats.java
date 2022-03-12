@@ -294,14 +294,17 @@ public class TableStats {
         int numOfTuples = 0;
         DbFileIterator iterator = heapFile.iterator(new TransactionId());
         try {
+            iterator.open();
             while (iterator.hasNext()) {
-                iterator = (DbFileIterator) iterator.next();
+                Tuple tuple = iterator.next();
                 numOfTuples++;
             }
         } catch (TransactionAbortedException e) {
             e.printStackTrace();
         } catch (DbException e) {
             e.printStackTrace();
+        } finally {
+            iterator.close();
         }
         return numOfTuples;
     }

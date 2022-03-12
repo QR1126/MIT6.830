@@ -70,10 +70,6 @@ public class BufferPool {
             dummyTail.prev = dummyHead;
         }
 
-        public void fresh(lruNode node) {
-
-        }
-
         public void put(lruNode node) {
             PageId pageId = node.page.getId();
             pageIdlruNodeMap.put(pageId, node);

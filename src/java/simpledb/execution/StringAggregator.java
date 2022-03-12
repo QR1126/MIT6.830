@@ -5,6 +5,7 @@ import simpledb.storage.*;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -38,7 +39,7 @@ public class StringAggregator implements Aggregator {
         this.aField = afield;
         if (!what.equals(Op.COUNT)) throw new IllegalArgumentException("Exception: what != COUNT");
         this.what = what;
-        groupStringAggVal = new ConcurrentHashMap<>();
+        groupStringAggVal = new HashMap<>();
         if (this.gbField == NO_GROUPING) {
             this.StringAggDesc = new TupleDesc(new Type[]{Type.INT_TYPE}, new String[]{"No_Grouping aggregate value"});
         } else {
@@ -54,8 +55,6 @@ public class StringAggregator implements Aggregator {
         // some code goes here
         assert tup.getField(gbField).getType().equals(gbFieldType);
         Field field = gbField == NO_GROUPING ? null : tup.getField(gbField);
-//        if (!groupStringAggVal.containsKey(field)) groupStringAggVal.put(field, 0);
-//        groupStringAggVal.put(field, groupStringAggVal.get(field) + 1);
         groupStringAggVal.put(field, groupStringAggVal.getOrDefault(field, 0) + 1);
     }
 

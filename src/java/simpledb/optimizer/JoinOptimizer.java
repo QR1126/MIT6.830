@@ -6,6 +6,7 @@ import simpledb.execution.*;
 import simpledb.storage.TupleDesc;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 import javax.swing.*;
 import javax.swing.tree.*;
@@ -183,9 +184,9 @@ public class JoinOptimizer {
             int eqcard;
             if (t1pkey && t2pkey) {
                 eqcard = Math.min(card1, card2);
-            } else if (t1pkey) {
+            } else if (t1pkey && !t2pkey) {
                 eqcard = card2;
-            } else if (t2pkey) {
+            } else if (t2pkey && !t1pkey) {
                 eqcard = card1;
             } else {
                 eqcard = Math.max(card1, card2);
@@ -255,7 +256,27 @@ public class JoinOptimizer {
 
         // some code goes here
         //Replace the following
-        return joins;
+        PlanCache planCache = new PlanCache();
+        int size = joins.size();
+        for (int i = 1; i <= size; i++) {
+            Set<Set<LogicalJoinNode>> subsets = enumerateSubsets(joins, i);
+            for (Set<LogicalJoinNode> joinSet : subsets) {
+                CostCard bestPlan = new CostCard();
+                bestPlan.cost = Double.MAX_VALUE;
+                for (LogicalJoinNode joinToRemove : joinSet) {
+                    CostCard plan = computeCostAndCardOfSubplan(stats, filterSelectivities, joinToRemove, joinSet, bestPlan.cost, planCache);
+                    if (plan != null && plan.cost < bestPlan.cost) {
+                        bestPlan.plan = plan.plan;
+                        bestPlan.cost = plan.cost;
+                        bestPlan.card = plan.card;
+                    }
+                    planCache.addPlan(joinSet, bestPlan.cost, bestPlan.card, bestPlan.plan);
+                }
+            }
+        }
+        List<LogicalJoinNode> optJoin = planCache.getOrder(new HashSet<>(joins));
+        if (explain) printJoins(optJoin, planCache, stats, filterSelectivities);
+        return optJoin;
     }
 
     // ===================== Private Methods =================================

@@ -12,7 +12,7 @@ public class IntHistogram {
     private int numOfBuckets;
     private int min;
     private int max;
-    private double wb;
+    private int wb;
     private int numOfTuples;
 
     /**
@@ -33,11 +33,12 @@ public class IntHistogram {
      */
     public IntHistogram(int buckets, int min, int max) {
     	// some code goes here
+        if (max - min + 1 < buckets) buckets = max - min + 1;
         this.buckets = new int[buckets];
         this.numOfBuckets = buckets;
         this.min = min;
         this.max = max;
-        this.wb = (double) (max - min + 1) / numOfBuckets;
+        this.wb = (max - min + 1) / numOfBuckets;
         this.numOfTuples = 0;
     }
 
@@ -55,13 +56,7 @@ public class IntHistogram {
     /** get index of value v
      * */
     private int getIndex(int v) {
-        if (min >= 0) {
-            int index = v == max ? numOfBuckets - 1 : (int)( v / wb);
-            return index;
-        } else {
-            int index = (int) ((v - min) / wb);
-            return index;
-        }
+        return Math.min((v - this.min) / wb, numOfBuckets - 1);
     }
 
     /**
