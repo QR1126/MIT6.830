@@ -11,11 +11,12 @@ import java.io.*;
 
 import java.nio.file.Path;
 import java.sql.PreparedStatement;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.time.Period;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 /**
  * BufferPool manages the reading and writing of pages into memory from
@@ -41,6 +42,7 @@ public class BufferPool {
 
     private final HashMap<PageId, Page> pageBuffer;
     private final lruManager bufferPoolManager;
+    private final LockManager lockManager;
     private final int numPages;
 
     private final class lruNode {
@@ -111,6 +113,72 @@ public class BufferPool {
         }
     }
 
+    private final class LockManager {
+        private class PageLock extends ReentrantLock {
+            private PageId pid;
+            private Permissions perm;
+            private TransactionId tid;
+            private Queue<TransactionId> waitQueue;
+
+            public PageLock(PageId pid, Permissions perm, TransactionId tid) {
+                this.pid = pid;
+                this.perm = perm;
+                this.tid = tid;
+                this.waitQueue = new LinkedList<>();
+            }
+
+            public PageLock(boolean fair, PageId pid, Permissions perm, TransactionId tid) {
+                super(fair);
+                this.pid = pid;
+                this.perm = perm;
+                this.tid = tid;
+                this.waitQueue = new LinkedList<>();
+            }
+
+            public Permissions getPerm() {
+                return perm;
+            }
+        }
+
+        private final Map<PageId, PageLock> lockMap = new ConcurrentHashMap<>();
+
+        public LockManager(Map<Lock, TransactionId> lockMap) {
+        }
+
+        public void acquireLock(TransactionId tid, PageId pid, Permissions perm) {
+        }
+
+        public void releaseLock(TransactionId tid, PageId pid) {
+
+        }
+
+        public void releaseAllLock(TransactionId tid) {
+
+        }
+
+        public boolean isLocked(TransactionId tid, PageId pid) {
+            return true;
+        }
+    }
+
+    private final class pair<T1,T2> {
+        private T1 first;
+        private T2 second;
+
+        public pair(T1 first, T2 second) {
+            this.first = first;
+            this.second = second;
+        }
+
+        public T1 getFirst() {
+            return first;
+        }
+
+        public T2 getSecond() {
+            return second;
+        }
+    }
+
     /**
      * Creates a BufferPool that caches up to numPages pages.
      *
@@ -121,6 +189,7 @@ public class BufferPool {
         this.numPages = numPages;
         pageBuffer = new HashMap<>();
         bufferPoolManager = new lruManager(numPages);
+        lockManager = new LockManager(new HashMap<>());
     }
     
     public static int getPageSize() {
@@ -155,6 +224,7 @@ public class BufferPool {
     public  Page getPage(TransactionId tid, PageId pid, Permissions perm)
         throws TransactionAbortedException, DbException {
         // some code goes here
+        lockManager.acquireLock(tid, pid, perm);
         if (pageBuffer.containsKey(pid)) {
             lruNode lruNode = bufferPoolManager.pageIdlruNodeMap.get(pid);
             bufferPoolManager.addToHead(lruNode);
@@ -186,6 +256,7 @@ public class BufferPool {
     public  void unsafeReleasePage(TransactionId tid, PageId pid) {
         // some code goes here
         // not necessary for lab1|lab2
+        lockManager.releaseLock(tid, pid);
     }
 
     /**
@@ -196,13 +267,14 @@ public class BufferPool {
     public void transactionComplete(TransactionId tid) {
         // some code goes here
         // not necessary for lab1|lab2
+        lockManager.releaseAllLock(tid);
     }
 
     /** Return true if the specified transaction has a lock on the specified page */
     public boolean holdsLock(TransactionId tid, PageId p) {
         // some code goes here
         // not necessary for lab1|lab2
-        return false;
+        return lockManager.isLocked(tid, p);
     }
 
     /**

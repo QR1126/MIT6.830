@@ -256,6 +256,17 @@ public class JoinOptimizer {
 
         // some code goes here
         //Replace the following
+        //1. j = set of join nodes
+        //2. for (i in 1...|j|):
+        //3.     for s in {all length i subsets of j}
+        //4.       bestPlan = {}
+        //5.       for s' in {all length d-1 subsets of s}
+        //6.            subplan = optjoin(s')
+        //7.            plan = best way to join (s-s') to subplan
+        //8.            if (cost(plan) < cost(bestPlan))
+        //9.               bestPlan = plan
+        //10.      optjoin(s) = bestPlan
+        //11. return optjoin(j)
         PlanCache planCache = new PlanCache();
         int size = joins.size();
         for (int i = 1; i <= size; i++) {

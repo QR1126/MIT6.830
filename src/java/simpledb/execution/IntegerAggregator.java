@@ -88,18 +88,18 @@ public class IntegerAggregator implements Aggregator {
             case COUNT: return (Integer) oldVal + 1;
             case SUM: return (Integer) oldVal + newVal;
             case AVG:
-                pair p = (pair) oldVal;
+                pair<Integer, Integer> p = (pair) oldVal;
                 return new pair(p.first + newVal, p.second + 1);
         }
         assert false;
         return null;
     }
 
-    private class pair {
-        Integer first;
-        Integer second;
+    private class pair<T1, T2> {
+        T1 first;
+        T2 second;
 
-        public pair(Integer first, Integer second) {
+        public pair(T1 first, T2 second) {
             this.first = first;
             this.second = second;
         }
@@ -121,7 +121,7 @@ public class IntegerAggregator implements Aggregator {
             Field groupVal = entry.getKey();
             int aggregateVal;
             if (what.equals(Op.AVG)) {
-                pair aggPair = (pair) entry.getValue();
+                pair<Integer, Integer> aggPair = (pair) entry.getValue();
                 aggregateVal = aggPair.first / aggPair.second;
             } else {
                 aggregateVal = (int) entry.getValue();
