@@ -101,7 +101,40 @@ public final class LockManager {
     }
 
     public synchronized void releaseAllLock(TransactionId tid) {
+        List<pair<PageId, lockType>> lockPages = getLockPages(tid);
+        for (pair<PageId, lockType> pair : lockPages) {
+            PageId pageId = pair.getFirst();
+            releaseLock(tid, pageId);
+        }
+    }
 
+    public List<pair<PageId, lockType>> getLockPages(TransactionId tid) {
+        List<PageId> pageIds = tidToLockedPages.get(tid);
+        List<pair<PageId, lockType>> list = new ArrayList<>();
+        if (pageIds == null) return list;
+        for (PageId pageId : pageIds) {
+            lock lock = getLock(pageId);
+            list.add(new pair<PageId, lockType>(pageId, lock.type));
+        }
+        return list;
+    }
+
+    private final static class pair<T1,T2> {
+        private T1 first;
+        private T2 second;
+
+        public pair(T1 first, T2 second) {
+            this.first = first;
+            this.second = second;
+        }
+
+        public T1 getFirst() {
+            return first;
+        }
+
+        public T2 getSecond() {
+            return second;
+        }
     }
 
     public synchronized boolean isHoldLock(TransactionId tid, PageId pid, Permissions perm) {
