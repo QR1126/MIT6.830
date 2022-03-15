@@ -1,9 +1,7 @@
 package simpledb.storage;
 
-import simpledb.common.Database;
-import simpledb.common.Permissions;
-import simpledb.common.DbException;
-import simpledb.common.DeadlockException;
+import org.omg.CORBA.PUBLIC_MEMBER;
+import simpledb.common.*;
 import simpledb.transaction.TransactionAbortedException;
 import simpledb.transaction.TransactionId;
 
@@ -113,54 +111,6 @@ public class BufferPool {
         }
     }
 
-    private final class LockManager {
-        private class PageLock extends ReentrantLock {
-            private PageId pid;
-            private Permissions perm;
-            private TransactionId tid;
-            private Queue<TransactionId> waitQueue;
-
-            public PageLock(PageId pid, Permissions perm, TransactionId tid) {
-                this.pid = pid;
-                this.perm = perm;
-                this.tid = tid;
-                this.waitQueue = new LinkedList<>();
-            }
-
-            public PageLock(boolean fair, PageId pid, Permissions perm, TransactionId tid) {
-                super(fair);
-                this.pid = pid;
-                this.perm = perm;
-                this.tid = tid;
-                this.waitQueue = new LinkedList<>();
-            }
-
-            public Permissions getPerm() {
-                return perm;
-            }
-        }
-
-        private final Map<PageId, PageLock> lockMap = new ConcurrentHashMap<>();
-
-        public LockManager(Map<Lock, TransactionId> lockMap) {
-        }
-
-        public void acquireLock(TransactionId tid, PageId pid, Permissions perm) {
-        }
-
-        public void releaseLock(TransactionId tid, PageId pid) {
-
-        }
-
-        public void releaseAllLock(TransactionId tid) {
-
-        }
-
-        public boolean isLocked(TransactionId tid, PageId pid) {
-            return true;
-        }
-    }
-
     private final class pair<T1,T2> {
         private T1 first;
         private T2 second;
@@ -189,7 +139,7 @@ public class BufferPool {
         this.numPages = numPages;
         pageBuffer = new HashMap<>();
         bufferPoolManager = new lruManager(numPages);
-        lockManager = new LockManager(new HashMap<>());
+        lockManager = new LockManager();
     }
     
     public static int getPageSize() {
@@ -267,14 +217,14 @@ public class BufferPool {
     public void transactionComplete(TransactionId tid) {
         // some code goes here
         // not necessary for lab1|lab2
-        lockManager.releaseAllLock(tid);
+        transactionComplete(tid, true);
     }
 
     /** Return true if the specified transaction has a lock on the specified page */
     public boolean holdsLock(TransactionId tid, PageId p) {
         // some code goes here
         // not necessary for lab1|lab2
-        return lockManager.isLocked(tid, p);
+        return lockManager.isHoldLock(tid, p, Permissions.READ_ONLY);
     }
 
     /**
@@ -287,6 +237,7 @@ public class BufferPool {
     public void transactionComplete(TransactionId tid, boolean commit) {
         // some code goes here
         // not necessary for lab1|lab2
+
     }
 
     /**

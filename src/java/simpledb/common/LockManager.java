@@ -10,7 +10,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public final class LockManager {
 
-    private static final class lock {
+    public static final class lock {
         private lockType type;
         private final List<TransactionId> holders;
 
@@ -28,22 +28,76 @@ public final class LockManager {
         this.pidToLock = new ConcurrentHashMap<>();
     }
 
-    public synchronized void acquireLock(TransactionId tid, PageId pid, Permissions perm) {
+    public void acquireLock(TransactionId tid, PageId pid, Permissions perm) {
         if (isHoldLock(tid, pid, perm)) return;
         if (perm.equals(Permissions.READ_ONLY)) acquireSLock(tid, pid, perm);
         else if (perm.equals(Permissions.READ_WRITE)) acquireXLock(tid, pid, perm);
     }
 
-    public synchronized void acquireSLock(TransactionId tid, PageId pid, Permissions perm) {
-
+    public synchronized lock getLock(PageId pid) {
+        if (pidToLock.containsKey(pid)) return pidToLock.get(pid);
+        else {
+            lock lock = new lock();
+            pidToLock.put(pid, lock);
+            return lock;
+        }
     }
 
-    public synchronized void acquireXLock(TransactionId tid, PageId pid, Permissions perm) {
-
+    private void addLock(TransactionId tid, PageId pid) {
+        tidToLockedPages.putIfAbsent(tid, new ArrayList<>());
+        List<PageId> pageIds = tidToLockedPages.get(tid);
+        if (!pageIds.contains(pid)) pageIds.add(pid);
     }
 
-    public synchronized void releaseLock(TransactionId tid, PageId pid) {
+    public void acquireSLock(TransactionId tid, PageId pid, Permissions perm) {
+        lock lock = getLock(pid);
+        while (true) {
+            synchronized (lock) {
+                if (lock.holders.isEmpty()) {
+                    lock.type = lockType.shared;
+                    addLock(tid, pid);
+                    lock.holders.add(tid);
+                    break;
+                } else if (lock.type == lockType.shared) {
+                    lock.holders.add(tid);
+                    addLock(tid, pid);
+                    break;
+                }
+                else {
 
+                }
+            }
+        }
+    }
+
+    public void acquireXLock(TransactionId tid, PageId pid, Permissions perm) {
+        lock lock = getLock(pid);
+        while (true) {
+            synchronized (lock) {
+                if (lock.holders.isEmpty()) {
+                    lock.type = lockType.exclusive;
+                    addLock(tid, pid);
+                    lock.holders.add(tid);
+                    break;
+                } else if (lock.holders.size() == 1 && lock.holders.get(0) == tid) {
+                    lock.type = lockType.exclusive;
+                    break;
+                } else {
+
+                }
+            }
+        }
+    }
+
+    public void releaseLock(TransactionId tid, PageId pid) {
+        if (isHoldLock(tid, pid, Permissions.READ_ONLY)) {
+            lock lock = getLock(pid);
+            synchronized (lock) {
+                List<PageId> pageIds = tidToLockedPages.get(tid);
+                pageIds.remove(pid);
+                lock.holders.remove(tid);
+            }
+        }
     }
 
     public synchronized void releaseAllLock(TransactionId tid) {
