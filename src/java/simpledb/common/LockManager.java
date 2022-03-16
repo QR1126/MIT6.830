@@ -58,7 +58,7 @@ public final class LockManager {
                     addLock(tid, pid);
                     lock.holders.add(tid);
                     break;
-                } else if (lock.type == lockType.shared) {
+                } else if (lock.type == lockType.shared || lock.type == lockType.exclusive) {
                     lock.holders.add(tid);
                     addLock(tid, pid);
                     break;
@@ -90,7 +90,7 @@ public final class LockManager {
     }
 
     public void releaseLock(TransactionId tid, PageId pid) {
-        if (isHoldLock(tid, pid, Permissions.READ_ONLY)) {
+        if (isHoldLock(tid, pid, Permissions.READ_ONLY) || isHoldLock(tid, pid, Permissions.READ_WRITE)) {
             lock lock = getLock(pid);
             synchronized (lock) {
                 List<PageId> pageIds = tidToLockedPages.get(tid);
