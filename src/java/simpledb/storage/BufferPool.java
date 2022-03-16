@@ -351,9 +351,18 @@ public class BufferPool {
     private synchronized  void evictPage() throws DbException, IOException {
         // some code goes here
         // not necessary for lab1
-        lruNode lastNode = bufferPoolManager.getTail();
-        flushPage(lastNode.page.getId());
-        discardPage(lastNode.page.getId());
+        Page evictPage = getNotDirtyPage();
+        flushPage(evictPage.getId());
+        discardPage(evictPage.getId());
+    }
+
+    private Page getNotDirtyPage() throws DbException {
+        lruNode curNode = bufferPoolManager.getTail();
+        while (curNode.page.isDirty() != null) {
+            curNode = curNode.prev;
+            if (curNode.equals(bufferPoolManager.dummyHead)) throw new DbException("all pages are dirty");
+        }
+        return curNode.page;
     }
 
 }
