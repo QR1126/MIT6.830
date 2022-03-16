@@ -197,7 +197,7 @@ public class BufferPool {
      *
      * @param tid the ID of the transaction requesting the unlock
      */
-    public void transactionComplete(TransactionId tid) {
+    public void transactionComplete(TransactionId tid) throws IOException {
         // some code goes here
         // not necessary for lab1|lab2
         transactionComplete(tid, true);
@@ -217,10 +217,20 @@ public class BufferPool {
      * @param tid the ID of the transaction requesting the unlock
      * @param commit a flag indicating whether we should commit or abort
      */
-    public void transactionComplete(TransactionId tid, boolean commit) {
+    public void transactionComplete(TransactionId tid, boolean commit) throws IOException {
         // some code goes here
         // not necessary for lab1|lab2
-
+        List<LockManager.pair<PageId, lockType>> lockPages = lockManager.getLockPages(tid);
+        if (commit) {
+            for (LockManager.pair<PageId, lockType> pair : lockPages) {
+                flushPage(pair.getFirst());
+            }
+        } else {
+            for (LockManager.pair<PageId, lockType> pair : lockPages) {
+                discardPage(pair.getFirst());
+            }
+        }
+        lockManager.releaseAllLock(tid);
     }
 
     /**

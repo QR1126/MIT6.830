@@ -119,7 +119,7 @@ public final class LockManager {
         return list;
     }
 
-    private final static class pair<T1,T2> {
+    public final static class pair<T1,T2> {
         private T1 first;
         private T2 second;
 
