@@ -13,6 +13,8 @@ import simpledb.storage.*;
 import simpledb.transaction.TransactionAbortedException;
 import simpledb.transaction.TransactionId;
 
+import javax.swing.*;
+
 /**
  * BTreeFile is an implementation of a DbFile that stores a B+ tree.
  * Specifically, it stores a pointer to a root page,
@@ -184,13 +186,30 @@ public class BTreeFile implements DbFile {
 	 * @return the left-most leaf page possibly containing the key field f
 	 * 
 	 */
-	private BTreeLeafPage findLeafPage(TransactionId tid, Map<PageId, Page> dirtypages, BTreePageId pid, Permissions perm,
+	private BTreeLeafPage findLeafPage(TransactionId tid, Map<PageId, Page> dirtypages,
+									   BTreePageId pid, Permissions perm,
                                        Field f)
 					throws DbException, TransactionAbortedException {
 		// some code goes here
-        return null;
+		// base case:when the passed-in BTreePageId has pgcateg() equal to BTreePageId.LEAF then return
+		BTreeLeafPage res = null;
+		if (pid.pgcateg() == BTreePageId.LEAF) {
+			BTreeLeafPage bTreeLeafPage = (BTreeLeafPage) getPage(tid, dirtypages, pid, perm);
+			return bTreeLeafPage;
+		}
+		BTreeInternalPage bTreeInternalPage = (BTreeInternalPage) getPage(tid, dirtypages, pid, Permissions.READ_ONLY);
+		Iterator<BTreeEntry> iterator = bTreeInternalPage.iterator();
+		while (iterator.hasNext()) {
+			BTreeEntry bTreeEntry = iterator.next();
+			if (bTreeEntry.getKey().compare(Op.LESS_THAN_OR_EQ, f)) continue;
+			if (bTreeEntry.getKey().compare(Op.GREATER_THAN, f)) {
+				BTreePageId leftChild = bTreeEntry.getLeftChild();
+				res = findLeafPage(tid, dirtypages, leftChild, Permissions.READ_ONLY, f);
+			}
+		}
+		return res;
 	}
-	
+
 	/**
 	 * Convenience method to find a leaf page when there is no dirtypages HashMap.
 	 * Used by the BTreeFile iterator.
