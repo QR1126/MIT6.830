@@ -191,24 +191,48 @@ public class BTreeFile implements DbFile {
                                        Field f)
 					throws DbException, TransactionAbortedException {
 		// some code goes here
-		// base case:when the passed-in BTreePageId has pgcateg() equal to BTreePageId.LEAF then return
-		BTreeLeafPage res = null;
-		if (pid.pgcateg() == BTreePageId.LEAF) {
-			BTreeLeafPage bTreeLeafPage = (BTreeLeafPage) getPage(tid, dirtypages, pid, perm);
-			return bTreeLeafPage;
-		}
-		BTreeInternalPage bTreeInternalPage = (BTreeInternalPage) getPage(tid, dirtypages, pid, Permissions.READ_ONLY);
-		Iterator<BTreeEntry> iterator = bTreeInternalPage.iterator();
-		while (iterator.hasNext()) {
-			BTreeEntry bTreeEntry = iterator.next();
-			if (bTreeEntry.getKey().compare(Op.LESS_THAN_OR_EQ, f)) continue;
-			if (bTreeEntry.getKey().compare(Op.GREATER_THAN, f)) {
-				BTreePageId leftChild = bTreeEntry.getLeftChild();
-				res = findLeafPage(tid, dirtypages, leftChild, Permissions.READ_ONLY, f);
-			}
-		}
-		return res;
+		// base case: when the passed-in BTreePageId has pgcateg() equal to BTreePageId.LEAF then return
+        if (f == null) {
+            return dfs(tid, dirtypages, pid, Permissions.READ_ONLY);
+        } else {
+            return dfs(tid, dirtypages, pid, Permissions.READ_ONLY, f);
+        }
 	}
+
+	private BTreeLeafPage dfs(TransactionId tid, Map<PageId, Page> dirtypages,
+                              BTreePageId pid, Permissions perm,
+                              Field f) throws DbException, TransactionAbortedException {
+	    if (pid.pgcateg() == BTreePageId.LEAF) {
+	        BTreeLeafPage bTreeLeafPage = (BTreeLeafPage) getPage(tid, dirtypages, pid, perm);
+	        return bTreeLeafPage;
+        }
+	    BTreeLeafPage res = null;
+	    BTreeInternalPage bTreeInternalPage = (BTreeInternalPage) getPage(tid, dirtypages, pid, Permissions.READ_ONLY);
+        Iterator<BTreeEntry> iterator = bTreeInternalPage.iterator();
+        while (iterator.hasNext()) {
+            BTreeEntry bTreeEntry = iterator.next();
+            if (bTreeEntry.getKey().compare(Op.LESS_THAN, f)) continue;
+            if (bTreeEntry.getKey().compare(Op.GREATER_THAN_OR_EQ, f)) {
+                BTreePageId leftChild = bTreeEntry.getLeftChild();
+                res = dfs(tid, dirtypages, leftChild, Permissions.READ_ONLY);
+                break;
+            }
+        }
+        return res == null ? dfs(tid, dirtypages, pid, perm) : res;
+    }
+
+    private BTreeLeafPage dfs(TransactionId tid, Map<PageId, Page> dirtypages,
+                              BTreePageId pid, Permissions perm) throws DbException, TransactionAbortedException {
+        if (pid.pgcateg() == BTreePageId.LEAF) {
+            BTreeLeafPage bTreeLeafPage = (BTreeLeafPage) getPage(tid, dirtypages, pid, perm);
+            return bTreeLeafPage;
+        }
+        BTreeInternalPage bTreeInternalPage = (BTreeInternalPage) getPage(tid, dirtypages, pid, Permissions.READ_ONLY);
+        Iterator<BTreeEntry> iterator = bTreeInternalPage.iterator();
+        BTreeEntry bTreeEntry = iterator.next();
+        BTreePageId leftChild = bTreeEntry.getLeftChild();
+        return dfs(tid, dirtypages, leftChild, Permissions.READ_ONLY);
+    }
 
 	/**
 	 * Convenience method to find a leaf page when there is no dirtypages HashMap.
