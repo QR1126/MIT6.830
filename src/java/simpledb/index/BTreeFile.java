@@ -202,6 +202,7 @@ public class BTreeFile implements DbFile {
 	private BTreeLeafPage dfs(TransactionId tid, Map<PageId, Page> dirtypages,
                               BTreePageId pid, Permissions perm,
                               Field f) throws DbException, TransactionAbortedException {
+		// base case: when the passed-in BTreePageId has pgcateg() equal to BTreePageId.LEAF then return
 	    if (pid.pgcateg() == BTreePageId.LEAF) {
 	        BTreeLeafPage bTreeLeafPage = (BTreeLeafPage) getPage(tid, dirtypages, pid, perm);
 	        return bTreeLeafPage;
@@ -218,11 +219,13 @@ public class BTreeFile implements DbFile {
                 break;
             }
         }
+        // corner case : search for a non-existent record
         return res == null ? dfs(tid, dirtypages, pid, perm) : res;
     }
 
     private BTreeLeafPage dfs(TransactionId tid, Map<PageId, Page> dirtypages,
                               BTreePageId pid, Permissions perm) throws DbException, TransactionAbortedException {
+		// base case: when the passed-in BTreePageId has pgcateg() equal to BTreePageId.LEAF then return
         if (pid.pgcateg() == BTreePageId.LEAF) {
             BTreeLeafPage bTreeLeafPage = (BTreeLeafPage) getPage(tid, dirtypages, pid, perm);
             return bTreeLeafPage;
@@ -282,8 +285,55 @@ public class BTreeFile implements DbFile {
 		// the new entry.  getParentWithEmtpySlots() will be useful here.  Don't forget to update
 		// the sibling pointers of all the affected leaf pages.  Return the page into which a 
 		// tuple with the given key field should be inserted.
-        return null;
-		
+		BTreePageId parentId = page.getParentId();
+		BTreePageId rightSiblingId = page.getRightSiblingId();
+		BTreePageId splitPageId = page.getId();
+		BTreeLeafPage rightLeafPage = rightSiblingId == null ? null : (BTreeLeafPage) getPage(tid, dirtypages, rightSiblingId, Permissions.READ_WRITE);
+
+		BTreeLeafPage newLeafPage = (BTreeLeafPage) getEmptyPage(tid, dirtypages, BTreePageId.LEAF);
+		BTreePageId newLeafPageId = newLeafPage.getId();
+
+		int numOfTuples = page.getNumTuples();
+		int idxOfTuplesRemoved = (numOfTuples >> 1);
+
+		// move half of the tuples to the new leaf page
+		for ( ; idxOfTuplesRemoved < numOfTuples; idxOfTuplesRemoved++) {
+			Tuple tupleToMoved = page.getTuple(idxOfTuplesRemoved);
+			newLeafPage.insertTuple(tupleToMoved);
+			page.deleteTuple(tupleToMoved);
+		}
+
+		// update the sibling pointers of all the affected leaf pages
+		newLeafPage.setLeftSiblingId(splitPageId);
+		page.setRightSiblingId(newLeafPageId);
+		newLeafPage.setRightSiblingId(rightSiblingId);
+		if (rightSiblingId != null) {
+			rightLeafPage.setLeftSiblingId(newLeafPageId);
+		}
+
+		// copy the middle key up into the parent page, update the parent page's childId
+		// and recursively split the parent as needed to accommodate the new entry
+		Tuple newEntryTuple = newLeafPage.getTuple(0);
+		Field newEntryField = newEntryTuple.getField(0);
+		BTreeEntry newEntry = new BTreeEntry(newEntryField, splitPageId, newLeafPageId);
+		BTreeInternalPage parentPage = (BTreeInternalPage) getPage(tid, dirtypages, parentId, Permissions.READ_WRITE);
+		newEntry.setLeftChild(splitPageId);
+		newEntry.setRightChild(newLeafPageId);
+
+		BTreeEntry parentEntry = parentPage.iterator().next();
+		parentEntry.setLeftChild(newLeafPageId);
+		parentPage.updateEntry(parentEntry);
+
+		// split the parent page if it is full
+		if (parentPage.getNumEmptySlots() == 0) {
+			BTreeInternalPage internalPage = splitInternalPage(tid, dirtypages, parentPage, newEntryField);
+			internalPage.insertEntry(newEntry);
+		} else {
+			parentPage.insertEntry(newEntry);
+		}
+
+		// Return the page into which a tuple with the given key field should be inserted.
+		return field.compare(Op.LESS_THAN, newEntryField) ? page : newLeafPage;
 	}
 	
 	/**
