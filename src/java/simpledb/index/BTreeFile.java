@@ -299,8 +299,8 @@ public class BTreeFile implements DbFile {
 		// move half of the tuples to the new leaf page
 		for ( ; idxOfTuplesRemoved < numOfTuples; idxOfTuplesRemoved++) {
 			Tuple tupleToMoved = page.getTuple(idxOfTuplesRemoved);
-			newLeafPage.insertTuple(tupleToMoved);
 			page.deleteTuple(tupleToMoved);
+			newLeafPage.insertTuple(tupleToMoved);
 		}
 
 		// update the sibling pointers of all the affected leaf pages
@@ -319,10 +319,6 @@ public class BTreeFile implements DbFile {
 		BTreeInternalPage parentPage = (BTreeInternalPage) getPage(tid, dirtypages, parentId, Permissions.READ_WRITE);
 		newEntry.setLeftChild(splitPageId);
 		newEntry.setRightChild(newLeafPageId);
-
-		BTreeEntry parentEntry = parentPage.iterator().next();
-		parentEntry.setLeftChild(newLeafPageId);
-		parentPage.updateEntry(parentEntry);
 
 		// split the parent page if it is full
 		if (parentPage.getNumEmptySlots() == 0) {
@@ -386,11 +382,10 @@ public class BTreeFile implements DbFile {
 		int cnt = numOfEntries >> 1;
 		while (cnt-- > 0) {
 			BTreeEntry entryToMoved = iterator.next();
-			newInternalPage.insertEntry(entryToMoved);
-			newInternalPage.updateEntry(entryToMoved);
+			BTreeEntry newEntry = new BTreeEntry(entryToMoved.getKey(), entryToMoved.getLeftChild(), entryToMoved.getRightChild());
 			page.deleteKeyAndLeftChild(entryToMoved);
-			page.deleteKeyAndRightChild(entryToMoved);
-			page.updateEntry(entryToMoved);
+			//page.deleteKeyAndRightChild(entryToMoved);
+			newInternalPage.insertEntry(newEntry);
 		}
 
 		// Push the middle key up into the parent page, and recursively
@@ -406,11 +401,11 @@ public class BTreeFile implements DbFile {
 			parentPage.updateEntry(middleEntry);
 			updateParentPointers(tid, dirtypages, parentPage);
 		}
-		newInternalPage.deleteKeyAndRightChild(middleEntry);
-		newInternalPage.deleteKeyAndRightChild(middleEntry);
-		newInternalPage.updateEntry(middleEntry);
+//		newInternalPage.deleteKeyAndRightChild(middleEntry);
+//		newInternalPage.deleteKeyAndLeftChild(middleEntry);
+//		newInternalPage.updateEntry(middleEntry);
 
-		return field.compare(Op.LESS_THAN, newInternalPage.getKey(0)) ? page : newInternalPage;
+		return field.compare(Op.LESS_THAN, newInternalPage.getKey(1)) ? page : newInternalPage;
 	}
 	
 	/**
