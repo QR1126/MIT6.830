@@ -553,7 +553,7 @@ public class BTreeInternalPage extends BTreePage {
 	 * Move an entry from one slot to another slot, and update the corresponding
 	 * headers
 	 */
-	private void moveEntry(int from, int to) {
+	public void moveEntry(int from, int to) {
 		if(!isSlotUsed(to) && isSlotUsed(from)) {
 			markSlotUsed(to, true);
 			keys[to] = keys[from];

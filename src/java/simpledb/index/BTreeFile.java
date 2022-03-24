@@ -367,8 +367,7 @@ public class BTreeFile implements DbFile {
 		// will be useful here.  Return the page into which an entry with the given key field
 		// should be inserted.
 
-		// Split the internal page by adding a new page on the right of the existing
-		// page.
+		// Split the internal page by adding a new page on the right of the existing page.
 		BTreePageId pageId = page.getId();
 		BTreePageId parentId = page.getParentId();
 		BTreeInternalPage parentPage = (BTreeInternalPage) getPage(tid, dirtypages, parentId, Permissions.READ_WRITE);
@@ -378,33 +377,36 @@ public class BTreeFile implements DbFile {
 
 		// moving half of the entries to the new page.
 		int numOfEntries = page.getNumEntries();
-		Iterator<BTreeEntry> iterator = page.reverseIterator();
-		int cnt = numOfEntries >> 1;
-		while (cnt-- > 0) {
+		Iterator<BTreeEntry> iterator = page.iterator();
+		for (int index = 0 ; index < numOfEntries; index++) {
+			if (index < (numOfEntries >> 1)) {
+				iterator.next();
+				continue;
+			}
 			BTreeEntry entryToMoved = iterator.next();
 			BTreeEntry newEntry = new BTreeEntry(entryToMoved.getKey(), entryToMoved.getLeftChild(), entryToMoved.getRightChild());
 			page.deleteKeyAndLeftChild(entryToMoved);
-			//page.deleteKeyAndRightChild(entryToMoved);
 			newInternalPage.insertEntry(newEntry);
 		}
 
-		// Push the middle key up into the parent page, and recursively
+		// Push (delete and copy) the middle key up into the parent page, and recursively
 		// split the parent as needed to accommodate the new entry
 		BTreeEntry middleEntry = newInternalPage.iterator().next();
+		BTreeEntry newEntry = new BTreeEntry(middleEntry.getKey(), middleEntry.getLeftChild(), middleEntry.getRightChild());
 		if (parentPage.getNumEmptySlots() == 0) {
 			BTreeInternalPage parentWithEmptySlots = getParentWithEmptySlots(tid, dirtypages, parentId, middleEntry.getKey());
-			parentWithEmptySlots.insertEntry(middleEntry);
-			parentWithEmptySlots.updateEntry(middleEntry);
+			parentWithEmptySlots.insertEntry(newEntry);
+			newInternalPage.deleteKeyAndLeftChild(middleEntry);
 			updateParentPointers(tid, dirtypages, parentWithEmptySlots);
 		} else {
-			parentPage.insertEntry(middleEntry);
-			parentPage.updateEntry(middleEntry);
+			parentPage.insertEntry(newEntry);
+			newInternalPage.deleteKeyAndLeftChild(middleEntry);
 			updateParentPointers(tid, dirtypages, parentPage);
 		}
-//		newInternalPage.deleteKeyAndRightChild(middleEntry);
-//		newInternalPage.deleteKeyAndLeftChild(middleEntry);
-//		newInternalPage.updateEntry(middleEntry);
-
+		int num = newInternalPage.getNumEntries();
+		for (int i = 2; i < num; i++) {
+			newInternalPage.moveEntry(i, i - 1);
+		}
 		return field.compare(Op.LESS_THAN, newInternalPage.getKey(1)) ? page : newInternalPage;
 	}
 	
