@@ -378,6 +378,7 @@ public class BTreeFile implements DbFile {
 		// moving half of the entries to the new page.
 		int numOfEntries = page.getNumEntries();
 		Iterator<BTreeEntry> iterator = page.iterator();
+		BTreeEntry middleEntry = null;
 		for (int index = 0 ; index < numOfEntries; index++) {
 			if (index < (numOfEntries >> 1)) {
 				iterator.next();
@@ -385,28 +386,23 @@ public class BTreeFile implements DbFile {
 			}
 			BTreeEntry entryToMoved = iterator.next();
 			BTreeEntry newEntry = new BTreeEntry(entryToMoved.getKey(), entryToMoved.getLeftChild(), entryToMoved.getRightChild());
-			page.deleteKeyAndLeftChild(entryToMoved);
+			page.deleteKeyAndRightChild(entryToMoved);
+			if (index == (numOfEntries >> 1)) {
+				middleEntry = newEntry;
+				continue;
+			}
 			newInternalPage.insertEntry(newEntry);
 		}
 
 		// Push (delete and copy) the middle key up into the parent page, and recursively
-		// split the parent as needed to accommodate the new entry
-		BTreeEntry middleEntry = newInternalPage.iterator().next();
-		BTreeEntry newEntry = new BTreeEntry(middleEntry.getKey(), middleEntry.getLeftChild(), middleEntry.getRightChild());
-		if (parentPage.getNumEmptySlots() == 0) {
-			BTreeInternalPage parentWithEmptySlots = getParentWithEmptySlots(tid, dirtypages, parentId, middleEntry.getKey());
-			parentWithEmptySlots.insertEntry(newEntry);
-			newInternalPage.deleteKeyAndLeftChild(middleEntry);
-			updateParentPointers(tid, dirtypages, parentWithEmptySlots);
-		} else {
-			parentPage.insertEntry(newEntry);
-			newInternalPage.deleteKeyAndLeftChild(middleEntry);
-			updateParentPointers(tid, dirtypages, parentPage);
-		}
-		int num = newInternalPage.getNumEntries();
-		for (int i = 2; i < num; i++) {
-			newInternalPage.moveEntry(i, i - 1);
-		}
+		// split the parent as needed to accommodate the new entry. Don't forget to update
+		// the parent pointers of all the children moving to the new page.
+		middleEntry.setLeftChild(pageId);
+		middleEntry.setRightChild(newInternalPageId);
+		BTreeInternalPage parentWithEmptySlots = getParentWithEmptySlots(tid, dirtypages, parentId, middleEntry.getKey());
+		parentWithEmptySlots.insertEntry(middleEntry);
+		updateParentPointers(tid, dirtypages, parentWithEmptySlots);
+
 		return field.compare(Op.LESS_THAN, newInternalPage.getKey(1)) ? page : newInternalPage;
 	}
 	
