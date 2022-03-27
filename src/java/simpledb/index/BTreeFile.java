@@ -394,16 +394,20 @@ public class BTreeFile implements DbFile {
 			newInternalPage.insertEntry(newEntry);
 		}
 
-		// Push (delete and copy) the middle key up into the parent page, and recursively
-		// split the parent as needed to accommodate the new entry. Don't forget to update
-		// the parent pointers of all the children moving to the new page.
+		// The child pointers of the new parent entry should point to the two internal pages resulting
+		// from the split.
 		middleEntry.setLeftChild(pageId);
 		middleEntry.setRightChild(newInternalPageId);
+
+		// Push (delete and copy) the middle key up into the parent page, and recursively
+		// split the parent as needed to accommodate the new entry.
+		// Update parent pointers as needed.Don't forget to update the parent pointers
+		// of all the children moving to the new page.
 		BTreeInternalPage parentWithEmptySlots = getParentWithEmptySlots(tid, dirtypages, parentId, middleEntry.getKey());
 		parentWithEmptySlots.insertEntry(middleEntry);
 		updateParentPointers(tid, dirtypages, parentWithEmptySlots);
 
-		return field.compare(Op.LESS_THAN, newInternalPage.getKey(1)) ? page : newInternalPage;
+		return field.compare(Op.LESS_THAN, middleEntry.getKey()) ? page : newInternalPage;
 	}
 	
 	/**
@@ -695,12 +699,27 @@ public class BTreeFile implements DbFile {
         // Move some of the tuples from the sibling to the page so
 		// that the tuples are evenly distributed. Be sure to update
 		// the corresponding parent entry.
-		Iterator<Tuple> iterator = isRightSibling ? sibling.iterator() : sibling.reverseIterator();
-		Tuple tupleToSteal = iterator.next();
-		Tuple tupleToCopy = new Tuple(tupleToSteal.getTupleDesc());
-		page.deleteTuple(tupleToSteal);
-		sibling.insertTuple(tupleToCopy);
 
+		// step 1 : get the sibling's iterator, remember evenly distributed
+		Iterator<Tuple> iterator = isRightSibling ? sibling.iterator() : sibling.reverseIterator();
+		// step 2 : fetch the tuple to steal
+		int totalTuples = page.getNumTuples() + sibling.getNumTuples();
+		while (page.getNumTuples() < (totalTuples >> 1)) {
+			Tuple tupleToSteal = iterator.next();
+			Tuple tupleToCopy = new Tuple(tupleToSteal.getTupleDesc());
+			Iterator<Field> fieldIterator = tupleToSteal.fields();
+			int idx = 0;
+			while (fieldIterator.hasNext()) {
+				Field field = fieldIterator.next();
+				tupleToCopy.setField(idx++, field);
+			}
+			page.insertTuple(tupleToCopy);
+			sibling.deleteTuple(tupleToSteal);
+		}
+		Field key = isRightSibling ? page.iterator().next().getField(0) : sibling.iterator().next().getField(0);
+		// step 3 : update the corresponding parent entry
+		entry.setKey(key);
+		parent.updateEntry(entry);
 	}
 
 	/**
