@@ -808,9 +808,9 @@ public class BTreeFile implements DbFile {
 
 		// step 1 : move some of the entries form the left sibling to the pages
 		// so the entries are evenly distributed
-		int haflEntries = (page.getNumEntries() + leftSibling.getNumEntries()) >> 1;
+		int halfEntries = (page.getNumEntries() + leftSibling.getNumEntries()) >> 1;
 		Iterator<BTreeEntry> it = leftSibling.reverseIterator();
-		while (page.getNumEntries() < haflEntries) {
+		while (page.getNumEntries() < halfEntries) {
 			BTreeEntry entry = it.next();
 			BTreeEntry newEntry = new BTreeEntry(entry.getKey(), entry.getLeftChild(), entry.getRightChild());
 			page.insertEntry(newEntry);
@@ -852,14 +852,16 @@ public class BTreeFile implements DbFile {
 		// the corresponding parent entry. Be sure to update the parent
 		// pointers of all children in the entries that were moved.
 
+		// step 1 : pull down the original key to the left-hand page
 		Field oldParentKey = parentEntry.getKey();
-		BTreePageId firstLeftChild = page.reverseIterator().next().getRightChild();
-		BTreePageId lastRightChild = rightSibling.iterator().next().getLeftChild();
+		BTreePageId lastRightChild = page.reverseIterator().next().getRightChild();
+		BTreePageId firstLeftChild = rightSibling.iterator().next().getLeftChild();
 		page.insertEntry(new BTreeEntry(oldParentKey, lastRightChild, firstLeftChild));
 
-		int haflEntries = (page.getNumEntries() + rightSibling.getNumEntries()) >> 1;
+		// step 2 : move some of the entries from the right sibling to the page
+		int halfEntries = (page.getNumEntries() + rightSibling.getNumEntries()) >> 1;
 		Iterator<BTreeEntry> it = rightSibling.iterator();
-		while (page.getNumEntries() < haflEntries) {
+		while (page.getNumEntries() < halfEntries) {
 			BTreeEntry entry = it.next();
 			BTreeEntry newEntry = new BTreeEntry(entry.getKey(), entry.getLeftChild(), entry.getRightChild());
 			page.insertEntry(newEntry);
