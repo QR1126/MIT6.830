@@ -799,6 +799,31 @@ public class BTreeFile implements DbFile {
 		// that the entries are evenly distributed. Be sure to update
 		// the corresponding parent entry. Be sure to update the parent
 		// pointers of all children in the entries that were moved.
+
+		// step 0 : pull down the original key in the parent to the right-hand page
+		Field oldParentKey = parentEntry.getKey();
+		BTreePageId firstLeftChild = page.iterator().next().getLeftChild();
+		BTreePageId lastRightChild = leftSibling.reverseIterator().next().getRightChild();
+		page.insertEntry(new BTreeEntry(oldParentKey, lastRightChild, firstLeftChild));
+
+		// step 1 : move some of the entries form the left sibling to the pages
+		// so the entries are evenly distributed
+		int haflEntries = (page.getNumEntries() + leftSibling.getNumEntries()) >> 1;
+		Iterator<BTreeEntry> it = leftSibling.reverseIterator();
+		while (page.getNumEntries() < haflEntries) {
+			BTreeEntry entry = it.next();
+			BTreeEntry newEntry = new BTreeEntry(entry.getKey(), entry.getLeftChild(), entry.getRightChild());
+			page.insertEntry(newEntry);
+			leftSibling.deleteKeyAndRightChild(entry);
+		}
+
+		//step 2 : push up the last key in the left page to the parent
+		// and update the pointers
+		BTreeEntry lastEntry = leftSibling.reverseIterator().next();
+		parentEntry.setKey(lastEntry.getKey());
+		parent.updateEntry(parentEntry);
+		leftSibling.deleteKeyAndRightChild(lastEntry);
+		updateParentPointers(tid, dirtypages, page);
 	}
 	
 	/**
@@ -826,6 +851,26 @@ public class BTreeFile implements DbFile {
 		// that the entries are evenly distributed. Be sure to update
 		// the corresponding parent entry. Be sure to update the parent
 		// pointers of all children in the entries that were moved.
+
+		Field oldParentKey = parentEntry.getKey();
+		BTreePageId firstLeftChild = page.reverseIterator().next().getRightChild();
+		BTreePageId lastRightChild = rightSibling.iterator().next().getLeftChild();
+		page.insertEntry(new BTreeEntry(oldParentKey, lastRightChild, firstLeftChild));
+
+		int haflEntries = (page.getNumEntries() + rightSibling.getNumEntries()) >> 1;
+		Iterator<BTreeEntry> it = rightSibling.iterator();
+		while (page.getNumEntries() < haflEntries) {
+			BTreeEntry entry = it.next();
+			BTreeEntry newEntry = new BTreeEntry(entry.getKey(), entry.getLeftChild(), entry.getRightChild());
+			page.insertEntry(newEntry);
+			rightSibling.deleteKeyAndLeftChild(entry);
+		}
+
+		BTreeEntry lastEntry = rightSibling.iterator().next();
+		parentEntry.setKey(lastEntry.getKey());
+		parent.updateEntry(parentEntry);
+		rightSibling.deleteKeyAndLeftChild(lastEntry);
+		updateParentPointers(tid, dirtypages, page);
 	}
 	
 	/**
