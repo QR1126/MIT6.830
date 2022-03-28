@@ -460,6 +460,27 @@ public class LogFile {
             synchronized(this) {
                 preAppend();
                 // some code goes here
+
+                // step 1 : read the log file, find all update
+                // records associated with the aborting transaction
+                // Use raf.seek() to move around in the log file, and raf.readInt()
+                Long offset = tidToFirstLogRecord.get(tid.getId());
+                raf.seek(offset);
+
+                // step 2 : discard any page from the buffer pool
+                // whose before-image you write back to the table file.
+                while (raf.getFilePointer() < raf.length()) {
+                    int type = raf.readInt();
+                    if (type == UPDATE_RECORD) {
+                        long txId = raf.readLong();
+                        Page before = this.readPageData(raf);
+                        Database.getCatalog().getDatabaseFile(before.getId().getTableId()).writePage(before);
+                        Database.getBufferPool().discardPage(before.getId());
+                        tidToFirstLogRecord.remove(tid.getId());
+                    }
+                }
+
+                raf.seek(currentOffset);
             }
         }
     }
@@ -487,6 +508,7 @@ public class LogFile {
             synchronized (this) {
                 recoveryUndecided = false;
                 // some code goes here
+
             }
          }
     }
