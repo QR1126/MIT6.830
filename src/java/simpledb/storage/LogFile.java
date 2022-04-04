@@ -6,6 +6,7 @@ import simpledb.transaction.TransactionId;
 import simpledb.common.Debug;
 
 import java.io.*;
+import java.nio.file.Path;
 import java.util.*;
 import java.lang.reflect.*;
 
@@ -509,6 +510,57 @@ public class LogFile {
                 recoveryUndecided = false;
                 // some code goes here
 
+                // The first long integer of the file represents the offset of the
+                // last written checkpoint, or -1 if there are no checkpoints
+                raf.seek(0);
+                long offsetOfCheckpoint = raf.readLong();
+                if (offsetOfCheckpoint != NO_CHECKPOINT_ID) {
+                    raf.seek(offsetOfCheckpoint);
+                    // Each log record begins with an integer type and a long integer
+                    // transaction id.
+                    int type = raf.readInt();
+                    if (type != CHECKPOINT_RECORD) {
+                        throw new IOException("record type mismatch");
+                    }
+                    raf.readLong();
+                    // CHECKPOINT records consist of active transactions at the time
+                    // the checkpoint was taken and their first log record on disk.  The format
+                    // of the record is an integer count of the number of transactions, as well
+                    // as a long integer transaction id and a long integer first record offset
+                    // for each active transaction.
+                    int numberOfTrx = raf.readInt();
+                    for (int i = 0; i < numberOfTrx; i++) {
+                        Long trxId = raf.readLong();
+                        Long offset = raf.readLong();
+                        tidToFirstLogRecord.put(trxId, offset);
+                    }
+                    raf.readLong();
+                }
+                raf.seek(logFile.length());
+                Set<Long> completedTransactions = new HashSet<Long>();
+                for (Long offset = raf.length(); offset > LONG_SIZE; ) {
+                    raf.seek(offset - LONG_SIZE);
+                    offset = raf.readLong();
+                    raf.seek(offset);
+                    int recordType = raf.readInt();
+                    Long trxId = raf.readLong();
+                    switch (recordType) {
+                        case COMMIT_RECORD: case ABORT_RECORD:
+                            completedTransactions.add(trxId);
+                            break;
+                        case BEGIN_RECORD: case CHECKPOINT_RECORD: break;
+                        case UPDATE_RECORD:
+                            if (!completedTransactions.contains(trxId)) {
+                                Page before = readPageData(raf);
+                                Database.getCatalog().getDatabaseFile(before.getId().getTableId()).writePage(before);
+                            }
+                            break;
+                        default:
+                            throw new IOException();
+                    }
+                    raf.seek(raf.length());
+                    currentOffset = raf.length();
+                }
             }
          }
     }
