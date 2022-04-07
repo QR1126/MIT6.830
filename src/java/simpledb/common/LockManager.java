@@ -58,7 +58,8 @@ public final class LockManager {
                     addLock(tid, pid);
                     lock.holders.add(tid);
                     break;
-                } else if (lock.type == lockType.shared || lock.type == lockType.exclusive) {
+                } else if (lock.type == lockType.shared ||
+                        (lock.type == lockType.exclusive && lock.holders.contains(tid)) ) {
                     lock.holders.add(tid);
                     addLock(tid, pid);
                     break;
