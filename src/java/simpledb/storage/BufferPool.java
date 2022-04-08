@@ -378,6 +378,8 @@ public class BufferPool {
     private synchronized  void evictPage() throws DbException, IOException {
         // some code goes here
         // not necessary for lab1
+
+        // The no steal policy means that not evicts dirty page
         Page evictPage = getNotDirtyPage();
         flushPage(evictPage.getId());
         discardPage(evictPage.getId());

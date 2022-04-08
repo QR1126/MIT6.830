@@ -1,18 +1,17 @@
 package simpledb.common;
 
 import simpledb.storage.PageId;
+import simpledb.transaction.TransactionAbortedException;
 import simpledb.transaction.TransactionId;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 public final class LockManager {
 
     public static final class lock {
         private lockType type;
-        private final List<TransactionId> holders;
+        private final ArrayList<TransactionId> holders;
 
         public lock() {
             this.type = lockType.shared;
@@ -20,15 +19,77 @@ public final class LockManager {
         }
     }
 
+    private static final class dependencyGraph {
+        private final HashMap<TransactionId, ArrayList<TransactionId>> edgesOut;
+
+        public dependencyGraph() {
+            edgesOut = new HashMap<>();
+        }
+
+        private void dfs(TransactionId tid, TransactionId start, HashSet<TransactionId> visited)
+                throws TransactionAbortedException {
+            ArrayList<TransactionId> tids = edgesOut.get(tid);
+            if (tids == null) return;
+            for (TransactionId t : tids) {
+                if (tid == start) {
+                    throw new TransactionAbortedException();
+                }
+                if (visited.contains(t)) continue;
+                visited.add(t);
+                dfs(t, start, visited);
+            }
+        }
+
+        private void findCycle(TransactionId tid) throws TransactionAbortedException {
+            HashSet<TransactionId> vis = new HashSet<>();
+            vis.add(tid);
+            dfs(tid, tid, vis);
+        }
+
+        public void setEdges(TransactionId from, ArrayList<TransactionId> tos)
+                throws TransactionAbortedException {
+            edgesOut.putIfAbsent(from, new ArrayList<>());
+            ArrayList<TransactionId> edges = edgesOut.get(from);
+            ArrayList<TransactionId> oldEdges = new ArrayList<>(edges);
+            oldEdges.removeAll(tos);
+            for (TransactionId oldTo : oldEdges) {
+                edges.remove(oldTo);
+            }
+            boolean changed = false;
+            for (TransactionId to : tos) {
+                if (from == to) {
+                    continue;
+                }
+                if (edges.contains(to)) {
+                    continue;
+                }
+                edges.add(to);
+                changed = true;
+            }
+            if (changed) {
+                findCycle(from);
+            }
+        }
+
+        public void removeOutEdges(TransactionId from) {
+            ArrayList<TransactionId> tos = edgesOut.get(from);
+            if (tos != null) {
+                tos.clear();
+            }
+        }
+    }
+
     private final Map<TransactionId, List<PageId>> tidToLockedPages;
     private final Map<PageId, lock> pidToLock;
+    private final dependencyGraph graph;
 
     public LockManager() {
         this.tidToLockedPages = new ConcurrentHashMap<>();
         this.pidToLock = new ConcurrentHashMap<>();
+        this.graph = new dependencyGraph();
     }
 
-    public void acquireLock(TransactionId tid, PageId pid, Permissions perm) {
+    public void acquireLock(TransactionId tid, PageId pid, Permissions perm) throws TransactionAbortedException {
         if (isHoldLock(tid, pid, perm)) return;
         if (perm.equals(Permissions.READ_ONLY)) acquireSLock(tid, pid, perm);
         else if (perm.equals(Permissions.READ_WRITE)) acquireXLock(tid, pid, perm);
@@ -49,7 +110,7 @@ public final class LockManager {
         if (!pageIds.contains(pid)) pageIds.add(pid);
     }
 
-    public void acquireSLock(TransactionId tid, PageId pid, Permissions perm) {
+    public void acquireSLock(TransactionId tid, PageId pid, Permissions perm) throws TransactionAbortedException {
         lock lock = getLock(pid);
         while (true) {
             synchronized (lock) {
@@ -65,13 +126,20 @@ public final class LockManager {
                     break;
                 }
                 else {
-
+                    synchronized (graph) {
+                        graph.setEdges(tid, new ArrayList<TransactionId>() {{
+                            add(lock.holders.get(0));
+                        }});
+                    }
                 }
             }
         }
+        synchronized (graph) {
+            graph.removeOutEdges(tid);
+        }
     }
 
-    public void acquireXLock(TransactionId tid, PageId pid, Permissions perm) {
+    public void acquireXLock(TransactionId tid, PageId pid, Permissions perm) throws TransactionAbortedException {
         lock lock = getLock(pid);
         while (true) {
             synchronized (lock) {
@@ -84,9 +152,14 @@ public final class LockManager {
                     lock.type = lockType.exclusive;
                     break;
                 } else {
-
+                    synchronized (graph) {
+                        graph.setEdges(tid, lock.holders);
+                    }
                 }
             }
+        }
+        synchronized (graph) {
+            graph.removeOutEdges(tid);
         }
     }
 
