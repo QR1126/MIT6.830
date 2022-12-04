@@ -22,6 +22,9 @@ import java.util.*;
  */
 public class HeapFile implements DbFile {
 
+    private File file;
+    private TupleDesc tupleDesc;
+
     /**
      * Constructs a heap file backed by the specified file.
      * 
@@ -31,6 +34,8 @@ public class HeapFile implements DbFile {
      */
     public HeapFile(File f, TupleDesc td) {
         // some code goes here
+        file = f;
+        tupleDesc = td;
     }
 
     /**
@@ -40,7 +45,7 @@ public class HeapFile implements DbFile {
      */
     public File getFile() {
         // some code goes here
-        return null;
+        return file;
     }
 
     /**
@@ -54,7 +59,7 @@ public class HeapFile implements DbFile {
      */
     public int getId() {
         // some code goes here
-        throw new UnsupportedOperationException("implement this");
+        return file.getAbsolutePath().hashCode();
     }
 
     /**
@@ -64,13 +69,26 @@ public class HeapFile implements DbFile {
      */
     public TupleDesc getTupleDesc() {
         // some code goes here
-        throw new UnsupportedOperationException("implement this");
+        return tupleDesc;
     }
 
     // see DbFile.java for javadocs
     public Page readPage(PageId pid) {
         // some code goes here
-        return null;
+        long offset = pid.getPageNumber() * BufferPool.getPageSize();
+        byte[] data = new byte[BufferPool.getPageSize()];
+        try {
+            RandomAccessFile randomAccessFile = new RandomAccessFile(file, "r");
+            randomAccessFile.seek(offset);
+            randomAccessFile.readFully(data);
+            HeapPage heapPage = new HeapPage((HeapPageId) pid, data);
+            randomAccessFile.close();
+            return heapPage;
+        } catch (FileNotFoundException e) {
+            throw new RuntimeException(e);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     // see DbFile.java for javadocs
@@ -84,7 +102,7 @@ public class HeapFile implements DbFile {
      */
     public int numPages() {
         // some code goes here
-        return 0;
+        return (int) Math.floor(file.length() * 1.0 / BufferPool.getPageSize());
     }
 
     // see DbFile.java for javadocs
@@ -106,7 +124,54 @@ public class HeapFile implements DbFile {
     // see DbFile.java for javadocs
     public DbFileIterator iterator(TransactionId tid) {
         // some code goes here
-        return null;
+        return new DbFileIterator() {
+            private int curPgNo = -1;
+            private int numPage = numPages();
+            private Iterator<Tuple> it = null;
+
+            private Iterator<Tuple> fetchPage(int pgNo) throws TransactionAbortedException, DbException {
+                int tid = getId();
+                PageId pid = new HeapPageId(tid, pgNo);
+                Page page = Database.getBufferPool().getPage(new TransactionId(), pid, Permissions.READ_ONLY);
+                return ((HeapPage) page).iterator();
+            }
+
+            @Override
+            public void open() throws DbException, TransactionAbortedException {
+                curPgNo = 0;
+                it = fetchPage(curPgNo);
+            }
+
+            @Override
+            public boolean hasNext() throws DbException, TransactionAbortedException {
+                if (it == null) return false;
+                if (it.hasNext()) return true;
+                while (curPgNo + 1 < numPage) {
+                    curPgNo++;
+                    it = fetchPage(curPgNo);
+                    if (it.hasNext()) return true;
+                }
+                return false;
+            }
+
+            @Override
+            public Tuple next() throws DbException, TransactionAbortedException, NoSuchElementException {
+                if (!hasNext()) throw new NoSuchElementException();
+                return it.next();
+            }
+
+            @Override
+            public void rewind() throws DbException, TransactionAbortedException {
+                close();
+                open();
+            }
+
+            @Override
+            public void close() {
+                curPgNo = -1;
+                it = null;
+            }
+        };
     }
 
 }
